@@ -2,6 +2,7 @@
     "name": "CineTrack | Your Personal Watchlist",
     "short_name": "CineTrack",
     "description": "The ultimate personal watchlist for movies and TV shows with real-time regional streaming availability.",
+    "id": "com.cinetrack.app",
     "start_url": "/",
     "display": "standalone",
     "background_color": "#121212",
@@ -9,15 +10,34 @@
     "icons": [
         {
             "src": "pwa-icon.svg",
-            "sizes": "any",
+            "sizes": "192x192 512x512",
             "type": "image/svg+xml",
             "purpose": "any"
         },
         {
-            "src": "pwa-icon.svg",
-            "sizes": "any",
+            "src": "pwa-icon-maskable.svg",
+            "sizes": "192x192 512x512",
             "type": "image/svg+xml",
             "purpose": "maskable"
         }
-    ]
+    ],
+    "shortcuts": [
+        {
+            "name": "Library",
+            "url": "/",
+            "icons": [
+                {
+                    "src": "pwa-icon.svg",
+                    "sizes": "192x192"
+                }
+            ]
+        }
+    ],
+    "categories": [
+        "entertainment",
+        "movies",
+        "tv"
+    ],
+    "orientation": "portrait-primary",
+    "prefer_related_applications": false
 }
