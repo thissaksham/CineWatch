@@ -95,7 +95,7 @@ export const LibraryPage = ({ title, subtitle, watchlistType, tmdbType, emptyMes
         }
     };
 
-    const [sortOption, setSortOption] = useState<'date_added' | 'rating' | 'release_date' | 'runtime'>('rating');
+    const [sortOption, setSortOption] = useState<'date_added' | 'rating' | 'release_date' | 'runtime'>('date_added');
     const [isShuffled, setIsShuffled] = useState(false);
     const [shuffleKey, setShuffleKey] = useState(0);
     const [isSortOpen, setIsSortOpen] = useState(false);
@@ -173,7 +173,8 @@ export const LibraryPage = ({ title, subtitle, watchlistType, tmdbType, emptyMes
             poster_path: item.poster_path,
             vote_average: item.vote_average,
             status: item.status,
-            tmdb_status: (item.metadata as TMDBMedia)?.status
+            tmdb_status: (item.metadata as TMDBMedia)?.status,
+            created_at: item.created_at
         } as TMDBMedia)), [watchlist, watchlistType, tmdbType, searchTerm, viewMode]);
 
     const allProviders = useMemo(() => {
@@ -341,7 +342,9 @@ export const LibraryPage = ({ title, subtitle, watchlistType, tmdbType, emptyMes
                     return calculateMediaRuntime(a) - calculateMediaRuntime(b);
                 case 'date_added':
                 default:
-                    return 0;
+                    const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
+                    const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
+                    return dateB - dateA;
             }
         });
     }, [filteredLibrary, sortOption, tmdbType, viewMode]);

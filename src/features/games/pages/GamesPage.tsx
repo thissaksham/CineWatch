@@ -114,9 +114,9 @@ export const GamesPage = () => {
         const processedGameIds = new Set<string>();
 
         // Sort by added date (or user sort) - for now just defined order
-        const sortedGames = [...visibleLibraryGames];
+        const initialSortedGames = [...visibleLibraryGames];
 
-        sortedGames.forEach(game => {
+        initialSortedGames.forEach(game => {
             if (processedGameIds.has(game.id)) return;
 
             // Check for series data
@@ -168,8 +168,37 @@ export const GamesPage = () => {
             return game.title.toLowerCase().includes(searchTerm.toLowerCase());
         });
 
-        return { activeFranchises: filteredFranchises, activeGames: filteredStandalone };
-    }, [libraryGames, viewMode, searchTerm]);
+        // Step 4: Sorting Logic
+        const sortGames = (a: Game, b: Game) => {
+            switch (sortOption) {
+                case 'rating':
+                    return (b.rating || 0) - (a.rating || 0);
+                case 'release_date': {
+                    const dateA = a.release_date || '';
+                    const dateB = b.release_date || '';
+                    return dateB > dateA ? 1 : (dateB < dateA ? -1 : 0);
+                }
+                case 'random':
+                    return 0.5 - Math.random();
+                case 'date_added':
+                default:
+                    const createdAtA = a.created_at || '';
+                    const createdAtB = b.created_at || '';
+                    return createdAtB > createdAtA ? 1 : (createdAtB < createdAtA ? -1 : 0);
+            }
+        };
+
+        const sortedGames = [...filteredStandalone].sort(sortGames);
+
+        const sortedFranchises = [...filteredFranchises].sort((a, b) => {
+            // Use the "main" (oldest) game of the franchise for sorting comparison
+            const mainA = [...a.games].sort((ga, gb) => (ga.release_date || '') > (gb.release_date || '') ? 1 : -1)[0];
+            const mainB = [...b.games].sort((ga, gb) => (ga.release_date || '') > (gb.release_date || '') ? 1 : -1)[0];
+            return sortGames(mainA, mainB);
+        });
+
+        return { activeFranchises: sortedFranchises, activeGames: sortedGames };
+    }, [libraryGames, viewMode, searchTerm, sortOption]);
 
     // -------------------------------------------------------------------------
     // 5. SYNC SELECTED FRANCHISE

@@ -199,6 +199,7 @@ export interface TMDBMedia {
     production_companies?: { id: number; name: string }[];
     images?: unknown;
     reviews?: unknown;
+    created_at?: string; // Added for sorting
 }
 
 

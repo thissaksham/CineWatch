@@ -51,7 +51,7 @@ export const FranchiseOverlay: React.FC<FranchiseOverlayProps> = ({ franchise, o
                 <div className="franchise-modal-body">
                     <div className="franchise-games-grid">
                         {franchise?.games
-                            .sort((a, b) => (a.release_date || '') > (b.release_date || '') ? 1 : -1)
+                            .sort((a, b) => (b.created_at || '') > (a.created_at || '') ? 1 : -1)
                             .map((game) => (
                                 <GameCard
                                     key={game.id}
