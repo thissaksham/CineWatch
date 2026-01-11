@@ -1,0 +1,23 @@
+{
+    "name": "CineTrack | Your Personal Watchlist",
+    "short_name": "CineTrack",
+    "description": "The ultimate personal watchlist for movies and TV shows with real-time regional streaming availability.",
+    "start_url": "./index.html",
+    "display": "standalone",
+    "background_color": "#121212",
+    "theme_color": "#121212",
+    "icons": [
+        {
+            "src": "pwa-icon-512.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "any maskable"
+        },
+        {
+            "src": "pwa-icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any maskable"
+        }
+    ]
+}

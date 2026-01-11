@@ -18,10 +18,28 @@
   <!-- Premium Typography -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link
-    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@400;500;600;700&display=swap"
-    rel="stylesheet">
-</head>
+    <link rel="manifest" href="/manifest.json" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@400;500;600;700&display=swap"
+      rel="stylesheet">
+
+    <!-- PWA Registration & Install Popup Prevention -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js')
+            .then(reg => console.log('Service Worker registered', reg))
+            .catch(err => console.error('Service Worker registration failed', err));
+        });
+      }
+
+      // Prevent automatic install prompt
+      window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        console.log('Install prompt intercepted');
+      });
+    </script>
+  </head>
 
 <body>
   <div id="root"></div>
