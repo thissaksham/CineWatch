@@ -68,15 +68,6 @@ export default defineConfig(async ({ mode }): Promise<UserConfig> => {
           console.log('[Proxy] TMDB Error:', err);
         }) as (...args: unknown[]) => void);
       }
-    },
-    '/api/rapid': {
-      target: 'https://where-can-i-watch1.p.rapidapi.com',
-      changeOrigin: true,
-      rewrite: (path: string) => path.replace(/^\/api\/rapid/, ''),
-      headers: {
-        'x-rapidapi-key': env.VITE_RAPIDAPI_KEY,
-        'x-rapidapi-host': 'where-can-i-watch1.p.rapidapi.com'
-      }
     }
   };
 

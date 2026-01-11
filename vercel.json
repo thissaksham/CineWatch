@@ -1,12 +1,39 @@
 {
+    "headers": [
+        {
+            "source": "/(.*)",
+            "headers": [
+                {
+                    "key": "X-Content-Type-Options",
+                    "value": "nosniff"
+                },
+                {
+                    "key": "X-Frame-Options",
+                    "value": "DENY"
+                },
+                {
+                    "key": "X-XSS-Protection",
+                    "value": "1; mode=block"
+                },
+                {
+                    "key": "Referrer-Policy",
+                    "value": "strict-origin-when-cross-origin"
+                },
+                {
+                    "key": "Permissions-Policy",
+                    "value": "camera=(), microphone=(), geolocation=()"
+                },
+                {
+                    "key": "Content-Security-Policy",
+                    "value": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' https://image.tmdb.org https://placehold.co https://flagcdn.com https://media.rawg.io data: blob:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.tvmaze.com https://api.themoviedb.org https://api.watchmode.com https://*.rapidapi.com; frame-src https://www.youtube.com https://www.youtube-nocookie.com;"
+                }
+            ]
+        }
+    ],
     "rewrites": [
         {
             "source": "/api/tmdb/(.*)",
             "destination": "/api/proxy?path=$1"
-        },
-        {
-            "source": "/api/rapid/(.*)",
-            "destination": "/api/rapid_proxy?path=$1"
         },
         {
             "source": "/api/refresh",

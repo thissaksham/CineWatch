@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, useMemo } from 'react';
 import type { User, Session } from '@supabase/supabase-js';
 import { supabase } from '../../../lib/supabase';
+import { removeLocalStorageItem, clearSupabaseStorage } from '../../../utils/localStorage';
 
 
 interface AuthContextType {
@@ -37,9 +38,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     // Force sign out to clear Supabase client state
                     await supabase.auth.signOut();
 
-                    // Manually clear Supabase tokens from localStorage
-                    const keysToRemove = Object.keys(localStorage).filter(key => key.startsWith('sb-'));
-                    keysToRemove.forEach(key => localStorage.removeItem(key));
+                    // Safely clear Supabase tokens from localStorage
+                    clearSupabaseStorage();
 
                     setSession(null);
                     setUser(null);
@@ -90,14 +90,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             throw new Error('Failed to delete account. Ensure the SQL function exists.');
         }
 
-        // 2. Clear local storage
-        localStorage.removeItem('tmdb_region');
-        localStorage.removeItem('watchlist');
+        // 2. Clear local storage safely
+        removeLocalStorageItem('tmdb_region');
+        removeLocalStorageItem('watchlist');
 
-        // 3. Clear Supabase local storage tokens manually 
+        // 3. Clear Supabase local storage tokens safely
         // We don't call signOut() because the user record is already gone from the server (causes 403)
-        const keysToRemove = Object.keys(localStorage).filter(key => key.startsWith('sb-'));
-        keysToRemove.forEach(key => localStorage.removeItem(key));
+        clearSupabaseStorage();
 
         // 4. Reset local state
         setSession(null);

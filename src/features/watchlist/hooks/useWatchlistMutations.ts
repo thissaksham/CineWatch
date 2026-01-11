@@ -5,6 +5,7 @@ import { usePreferences } from '../../../context/PreferencesContext';
 import { pruneMetadata, determineShowStatus, getEnrichedMetadata, isSeasonOngoing } from '../../../lib/watchlist-shared';
 import { tmdb, type TMDBMedia } from '../../../lib/tmdb';
 import type { WatchlistItem, WatchStatus } from '../../../types';
+import { getLocalStorageItem, setLocalStorageItem } from '../../../utils/localStorage';
 
 export function useWatchlistMutations() {
     const { user } = useAuth();
@@ -29,12 +30,12 @@ export function useWatchlistMutations() {
 
         try {
             if (!user) {
-                // Local
-                const local = JSON.parse(localStorage.getItem('watchlist') || '[]');
+                // Local - use safe localStorage utilities
+                const local = getLocalStorageItem<WatchlistItem[]>('watchlist', []);
                 const updated = local.map((item: WatchlistItem) =>
                     (item.tmdb_id === tmdbId && item.type === type) ? { ...item, ...updates } : item
                 );
-                localStorage.setItem('watchlist', JSON.stringify(updated));
+                setLocalStorageItem('watchlist', updated);
             } else {
                 // Supabase
                 const { error } = await supabase
@@ -94,12 +95,12 @@ export function useWatchlistMutations() {
             };
 
             if (!user) {
-                const local = JSON.parse(localStorage.getItem('watchlist') || '[]');
+                const local = getLocalStorageItem<WatchlistItem[]>('watchlist', []);
                 const tempId = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `local-${Date.now()}`;
                 const finalItem = { ...itemData, id: tempId, user_id: 'local-user' };
-                const cleaned = (local as WatchlistItem[]).filter(item => !(item.tmdb_id == media.id && item.type === type));
+                const cleaned = local.filter(item => !(item.tmdb_id == media.id && item.type === type));
                 const updated = [finalItem, ...cleaned];
-                localStorage.setItem('watchlist', JSON.stringify(updated));
+                setLocalStorageItem('watchlist', updated);
                 return finalItem;
             } else {
                 const { data, error } = await supabase.from('watchlist').insert(itemData).select().single();
@@ -127,9 +128,9 @@ export function useWatchlistMutations() {
         },
         mutationFn: async ({ tmdbId, type }: { tmdbId: number; type: 'movie' | 'show' }) => {
             if (!user) {
-                const local = JSON.parse(localStorage.getItem('watchlist') || '[]');
-                const updated = (local as WatchlistItem[]).filter(item => !(item.tmdb_id == tmdbId && item.type === type));
-                localStorage.setItem('watchlist', JSON.stringify(updated));
+                const local = getLocalStorageItem<WatchlistItem[]>('watchlist', []);
+                const updated = local.filter(item => !(item.tmdb_id == tmdbId && item.type === type));
+                setLocalStorageItem('watchlist', updated);
                 return;
             }
             const { error } = await supabase.from('watchlist').delete().eq('user_id', user.id).eq('tmdb_id', tmdbId).eq('type', type);

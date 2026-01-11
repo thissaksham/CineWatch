@@ -1,66 +1,60 @@
-# Personal Watchlist
+# CineTrack - Personal Watchlist
 
-A modern, private media library built with React, TypeScript, and Supabase. Organize your movie and TV show watchlist with advanced sorting, region-specific streaming info, and privacy-focused data storage.
-
-![Project Banner](https://placehold.co/1200x400?text=Personal+Watchlist)
+A modern, private media library built with React, TypeScript, and Supabase. Organize your movie, TV show, and game watchlist with advanced sorting, region-specific streaming info, and privacy-focused data storage.
 
 ## 🚀 Features
 
-*   **Smart Library**: Automatically sorts TV shows by "Binge Time" (Runtime × Episodes).
-*   **Streaming Info**: Instantly see where to watch (Netflix, Prime, Hotstar, etc.) in your region using TMDB providers.
-*   **Trending Feed**: A noise-free, curated list of weekly popular Movies & TV shows.
-*   **Universal Search**: Integrated with TMDB API to find any title.
-*   **Private & Secure**: All user data is stored in your personal Supabase instance with Row Level Security (RLS).
-*   **Responsive Design**: Built with Tailwind CSS for mobile and desktop.
+- **Smart Library**: Automatically sorts TV shows by "Binge Time" (Runtime × Episodes).
+- **Streaming Info**: Instantly see where to watch (Netflix, Prime, Hotstar, etc.) in your region using TMDB providers.
+- **Games Support**: Track your game backlog with RAWG API integration.
+- **Trending Feed**: A noise-free, curated list of weekly popular Movies & TV shows.
+- **Universal Search**: Integrated with TMDB API to find any title.
+- **Private & Secure**: All user data is stored in your personal Supabase instance with Row Level Security (RLS).
+- **Responsive Design**: Built for mobile and desktop.
 
 ## 🛠️ Tech Stack
 
--   **Frontend**: React (Vite), TypeScript
--   **Styling**: Tailwind CSS
--   **Backend / Auth**: Supabase (Auth, Database, Realtime)
--   **Data Source**: The Movie Database (TMDB) API
--   **Routing**: React Router DOM v6
--   **Deployment**: Vercel
+- **Frontend**: React 19, TypeScript, Vite
+- **Styling**: CSS Modules + CSS Variables
+- **State Management**: TanStack Query (React Query), React Context
+- **Backend / Auth**: Supabase (Auth, Database, RLS)
+- **Data Sources**: TMDB API, RAWG API, Watchmode API
+- **Routing**: React Router DOM v7
+- **Deployment**: Vercel
 
 ## 📂 Project Structure
 
-```bash
-src/
-├── components/     # Reusable UI components (Layout, Cards, Navbar)
-├── context/        # Global state management
-│   ├── AuthContext.tsx       # Handles User Authentication (Supabase)
-│   └── WatchlistContext.tsx  # Manages user's watchlist state
-├── hooks/          # Custom React hooks
-├── lib/            # External service configurations
-│   ├── supabase.ts # Supabase client initialization
-│   ├── tmdb.ts     # TMDB API fetch functions and types
-│   └── mockData.ts # Fallback data for development
-├── pages/          # Route components (Pages)
-│   ├── Login.tsx
-│   ├── Trending.tsx
-│   ├── Movies.tsx
-│   └── ...
-├── App.tsx         # Main entry, Routing logic, Providers setup
-└── main.tsx        # React Root
+See [ARCHITECTURE.md](./ARCHITECTURE.md) for detailed folder structure and design decisions.
+
 ```
-
-## 🔄 Application Flow
-
-1.  **Authentication**:
-    -   Users log in via `AuthContext` using Supabase Magic Link or OAuth.
-    -   `ProtectedRoute` component guards access to the main app, redirecting unauthenticated users to `/auth`.
-
-2.  **Data Fetching**:
-    -   **TMDB Content**: `lib/tmdb.ts` fetches trending items, search results, and details directly from TMDB API.
-    -   **User Data**: `WatchlistContext` loads the user's saved items from Supabase `watchlist` table on mount.
-
-3.  **State Management**:
-    -   `AuthContext`: Exposes `user`, `role`, and `signOut`.
-    -   `WatchlistContext`: Syncs local state with Supabase Realtime, offering instant UI updates when items are added/removed.
+src/
+├── app/                    # Application core (routing, providers)
+├── context/                # Global contexts (preferences, search)
+├── constants/              # Application constants
+├── features/               # Feature-based modules
+│   ├── auth/              # Authentication
+│   ├── games/             # Games library
+│   ├── header/            # Header/Layout
+│   ├── media/             # Shared media hooks
+│   ├── movies/            # Movies feature
+│   ├── search/            # Search functionality
+│   ├── shows/             # TV Shows feature
+│   ├── upcoming/          # Upcoming releases
+│   └── watchlist/         # Watchlist management
+├── hooks/                  # Reusable React hooks
+├── lib/                    # Core libraries and API clients
+├── pages/                  # Standalone pages (auth)
+├── shared/                 # Shared/reusable components
+├── styles/                 # Global styles
+├── types/                  # TypeScript type definitions
+└── utils/                  # Utility functions
+```
 
 ## 🗄️ Database Schema
 
-The project uses a single primary table `watchlist` in Supabase.
+The project uses Supabase with Row Level Security (RLS) enabled.
+
+### watchlist table
 
 | Column | Type | Description |
 | :--- | :--- | :--- |
@@ -71,53 +65,104 @@ The project uses a single primary table `watchlist` in Supabase.
 | `title` | `varchar` | Title of the media |
 | `poster_path` | `varchar` | TMDB image path |
 | `vote_average`| `decimal`| Rating |
-| `status` | `varchar` | `plan_to_watch` (default), `watched`, `dropped` |
+| `status` | `varchar` | Current watch status |
 | `metadata` | `jsonb` | Full TMDB object cache |
+| `last_watched_season` | `int` | For TV shows |
+| `progress` | `int` | Episode progress |
 | `created_at` | `timestamp`| Record creation time |
-
-**Security**: RLS (Row Level Security) is enabled. Users can only CRUD (Create, Read, Update, Delete) rows where `user_id` matches their authenticated ID.
+| `updated_at` | `timestamp`| Last update time |
 
 ## ⚡ Setup & Installation
 
 ### Prerequisites
--   Node.js (v16+)
--   Supabase Account
--   TMDB API Key
+
+- Node.js (v18+)
+- Supabase Account
+- TMDB API Key
 
 ### Steps
 
-1.  **Clone the repository**
-    ```bash
-    git clone https://github.com/thissaksham/personal-watchlist.git
-    cd personal-watchlist
-    ```
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/yourusername/personal-watchlist.git
+   cd personal-watchlist
+   ```
 
-2.  **Install dependencies**
-    ```bash
-    npm install
-    ```
+2. **Install dependencies**
+   ```bash
+   npm install
+   ```
 
-3.  **Environment Setup**
-    Create a `.env` file in the root directory:
-    ```env
-    VITE_SUPABASE_URL=your_supabase_url
-    VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
-    VITE_TMDB_API_KEY=your_tmdb_api_key
-    ```
+3. **Environment Setup**
+   
+   Copy `.env.example` to `.env` and fill in your values:
+   ```bash
+   cp .env.example .env
+   ```
 
-4.  **Database Setup**
-    Run the SQL commands found in `supabase_schema.sql` in your Supabase SQL Editor to create the table and policies.
+   Required variables:
+   - `VITE_SUPABASE_URL` - Your Supabase project URL
+   - `VITE_SUPABASE_ANON_KEY` - Your Supabase anon key
+   - `VITE_TMDB_API_KEY` - Your TMDB API key
+   - `CRON_SECRET` - Secret for cron job authentication (generate with `openssl rand -hex 32`)
 
-5.  **Run Locally**
-    ```bash
-    npm run dev
-    ```
+4. **Database Setup**
+   
+   Run the SQL migrations in your Supabase SQL Editor to create tables and RLS policies.
+
+5. **Run Locally**
+   ```bash
+   npm run dev
+   ```
+
+## 🔒 Security
+
+This project implements several security measures:
+
+- **Row Level Security (RLS)**: Users can only access their own data
+- **API Proxies**: Backend proxies hide API keys from the client
+- **Rate Limiting**: API proxies include rate limiting protection
+- **Content Security Policy**: Strict CSP headers in production
+- **Input Validation**: All user inputs are validated
+- **CRON_SECRET**: Scheduled jobs require authentication
 
 ## 🚀 Deployment
 
-**Vercel** is recommended:
-1.  Import repo to Vercel.
-2.  Add Environment Variables from your `.env` file.
-3.  Deploy!
+### Vercel (Recommended)
 
-> **Note**: Ensure your Supabase **Site URL** and **Redirect URLs** are configured to match your Vercel deployment domain for auth to work correctly.
+1. Import repository to Vercel
+2. Add Environment Variables from your `.env` file
+3. Deploy!
+
+> **Important**: Ensure you set `CRON_SECRET` in Vercel environment variables for the refresh job to work.
+
+### Environment Variables for Vercel
+
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_ANON_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY` (for server-side operations)
+- `VITE_TMDB_API_KEY`
+- `CRON_SECRET` (required for /api/refresh endpoint)
+- `VITE_WATCHMODE_API_KEY` (optional)
+- `VITE_RAWG_API_KEY` (optional, for games)
+
+## 📜 Scripts
+
+- `npm run dev` - Start development server
+- `npm run build` - Build for production
+- `npm run preview` - Preview production build
+- `npm run test` - Run tests
+- `npm run lint` - Run ESLint
+- `npm run refresh` - Manually run database refresh script
+
+## 🧪 Testing
+
+```bash
+npm run test
+```
+
+Tests use Vitest with React Testing Library.
+
+## 📝 License
+
+Private project - All rights reserved.

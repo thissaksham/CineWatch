@@ -9,4 +9,5 @@ export * from './domUtils';
 export * from './validation';
 export * from './cn';
 export * from './mediaHelpers';
-export * from '../utils/mediaUtils';
+export * from './mediaUtils';
+export * from './localStorage';

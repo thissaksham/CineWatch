@@ -1,3 +1,4 @@
+import React from 'react';
 import { Star, Check, X, Undo2, CalendarPlus } from 'lucide-react';
 import { type TMDBMedia } from '../../../lib/tmdb';
 import { useWatchlist } from '../../../features/watchlist/context/WatchlistContext';
@@ -220,12 +221,26 @@ export const WatchlistCard = ({
     const filterStyle = getFilterStyle();
     const isFiltered = Object.keys(filterStyle).length > 0;
 
+    const handleKeyDown = (e: React.KeyboardEvent) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            onClick(media);
+        }
+    };
+
     return (
-        <div className="media-card group" onClick={() => onClick(media)}>
+        <div 
+            className="media-card group" 
+            onClick={() => onClick(media)}
+            onKeyDown={handleKeyDown}
+            role="button"
+            tabIndex={0}
+            aria-label={`View details for ${title}${year ? ` (${year})` : ''}${media.vote_average > 0 ? `, rated ${media.vote_average.toFixed(1)}` : ''}`}
+        >
             <div className="poster-wrapper">
                 <img
                     src={imageUrl}
-                    alt={title}
+                    alt={`${title} poster`}
                     className={`poster-img ${isFiltered ? 'group-hover:!grayscale-0 group-hover:!filter-none group-hover:!opacity-100 transition-all duration-300' : ''}`}
                     style={filterStyle}
                     loading="lazy"
@@ -268,14 +283,15 @@ export const WatchlistCard = ({
                     )}
                 </div>
 
-                <div className="card-actions-stack">
+                <div className="card-actions-stack" role="group" aria-label={`Actions for ${title}`}>
                     {(type === 'tv' && media.dismissed_from_upcoming && onRestoreToUpcoming) && (
                         <button
                             className="add-btn bg-white/10 hover:bg-blue-500/80 text-white"
                             onClick={(e) => { e.stopPropagation(); onRestoreToUpcoming(media); }}
+                            aria-label={`Start tracking upcoming seasons for ${title}`}
                             title="Start Tracking Upcoming Seasons"
                         >
-                            <CalendarPlus size={16} />
+                            <CalendarPlus size={16} aria-hidden="true" />
                         </button>
                     )}
 
@@ -283,25 +299,28 @@ export const WatchlistCard = ({
                         <button
                             className="add-btn bg-white/10 hover:bg-yellow-500/80 text-white"
                             onClick={(e) => { e.stopPropagation(); onMarkUnwatched(media); }}
+                            aria-label={`Mark ${title} as unwatched`}
                             title="Unwatch (Move to Plan to Watch)"
                         >
-                            <Undo2 size={16} />
+                            <Undo2 size={16} aria-hidden="true" />
                         </button>
                     )}
                     <button
                         className="add-btn bg-white/10 hover:bg-teal-500/80 text-white"
                         onClick={(e) => { e.stopPropagation(); onMarkWatched(media); }}
+                        aria-label={actionLabel ? `${actionLabel} ${title}` : `Mark ${title} as watched`}
                         title={actionLabel || "Mark as Watched"}
                     >
-                        {actionIcon || <Check size={16} />}
+                        {actionIcon || <Check size={16} aria-hidden="true" />}
                     </button>
                     <button
                         className="add-btn text-white hover:scale-110"
                         onClick={(e) => { e.stopPropagation(); onRemove(media); }}
+                        aria-label={removeLabel ? `${removeLabel} ${title}` : `Remove ${title} from library`}
                         title={removeLabel || "Remove from Library"}
                         style={{ backgroundColor: '#dc2626', borderColor: '#dc2626' }}
                     >
-                        {removeIcon || <X size={16} />}
+                        {removeIcon || <X size={16} aria-hidden="true" />}
                     </button>
                 </div>
 

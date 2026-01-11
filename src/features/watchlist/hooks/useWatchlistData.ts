@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../../../lib/supabase';
 import { useAuth } from '../../auth/context/AuthContext';
 import type { WatchlistItem } from '../../../types';
+import { getLocalStorageItem } from '../../../utils/localStorage';
 
 export function useWatchlistData() {
     const { user } = useAuth();
@@ -10,9 +11,8 @@ export function useWatchlistData() {
         queryKey: ['watchlist', user?.id || 'local'],
         queryFn: async () => {
             if (!user) {
-                if (typeof window === 'undefined') return [];
-                const local = localStorage.getItem('watchlist');
-                return local ? JSON.parse(local) : [];
+                // Use safe localStorage parsing with fallback
+                return getLocalStorageItem<WatchlistItem[]>('watchlist', []);
             }
 
             const { data, error } = await supabase
@@ -25,8 +25,5 @@ export function useWatchlistData() {
         },
         // Refetch when window regains focus (good for syncing)
         refetchOnWindowFocus: true,
-        // Sync local storage modifications if needed? 
-        // React Query doesn't listen to localstorage events automatically. 
-        // But for this app, mutations happen in-app mostly.
     });
 }
