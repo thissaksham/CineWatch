@@ -164,14 +164,23 @@ export const UpcomingCard = ({
     let label = '';
     let labelColor = '';
     let contextLabel = '';
+    let isStaleData = false; // True when next_episode_to_air is null but show has user progress
 
     if (isTV) {
         const nextEp = media.next_episode_to_air;
+        const lastEp = media.last_episode_to_air;
         let nextEpDate = nextEp?.air_date;
         let seasonNumber = nextEp?.season_number;
         let episodeNumber = nextEp?.episode_number;
 
-        if (!nextEpDate && media.seasons && Array.isArray(media.seasons)) {
+        // Check if this is stale data (no next episode, but has last episode - TMDB hasn't updated)
+        if (!nextEp && lastEp) {
+            isStaleData = true;
+            // Use last episode info for the label
+            seasonNumber = lastEp.season_number;
+            episodeNumber = lastEp.episode_number;
+            nextEpDate = lastEp.air_date;
+        } else if (!nextEpDate && media.seasons && Array.isArray(media.seasons)) {
             const today = getTodayValues();
             const futureSeason = media.seasons.find((s: any) => s.air_date && parseDate(s.air_date)! >= today);
             if (futureSeason) {
@@ -201,7 +210,10 @@ export const UpcomingCard = ({
         const isReleasedToday = nextDateObj && nextDateObj.toDateString() === new Date().toDateString();
         const isReleasedPast = nextDateObj && nextDateObj < getTodayValues();
 
-        if (seasonNumber === 1 && episodeNumber === 1) {
+        // If stale data, always show "Aired" label
+        if (isStaleData) {
+            contextLabel = `Aired (S${seasonNumber}E${episodeNumber})`;
+        } else if (seasonNumber === 1 && episodeNumber === 1) {
             contextLabel = isReleasedPast ? 'New Show (Aired)' : (isReleasedToday ? 'New Show (Today)' : 'New Show');
         } else if (isLastSeason && isEnded) {
             if (episodeNumber === 1) contextLabel = `Final Season (S${seasonNumber})`;
@@ -289,8 +301,14 @@ export const UpcomingCard = ({
 
                 <div className="discovery-info-stack">
                     {contextLabel && (
-                        <div className="media-pill" style={{ backgroundColor: 'rgba(20, 20, 20, 0.8)', border: '1px solid rgba(255, 255, 255, 0.2)' }}>
-                            <span className="text-gray-300">{contextLabel}</span>
+                        <div
+                            className="media-pill"
+                            style={{
+                                backgroundColor: isStaleData ? 'rgba(220, 38, 38, 0.9)' : 'rgba(20, 20, 20, 0.8)',
+                                border: isStaleData ? '1px solid rgba(248, 113, 113, 0.6)' : '1px solid rgba(255, 255, 255, 0.2)'
+                            }}
+                        >
+                            <span className={isStaleData ? 'text-white font-medium' : 'text-gray-300'}>{contextLabel}</span>
                         </div>
                     )}
                     <h4 className="discovery-title line-clamp-2">{title}</h4>

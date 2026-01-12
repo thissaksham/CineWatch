@@ -47,21 +47,44 @@ export const processUpcomingItem = (item: WatchlistItem, today: Date, region: st
     if (item.type === 'show') {
         const nextEp = meta.next_episode_to_air;
         const nextDate = parseDateLocal(nextEp?.air_date);
-
-        // If a show is marked as watched (caught up) or watching, ONLY show if confirmed future episode
-        if (['show_watched', 'show_watching'].includes(item.status)) {
-            if (!nextDate) return null;
-        }
+        const lastEp = meta.last_episode_to_air;
 
         // For shows with NO watched seasons (unwatched), ONLY show if it is a Season Premiere
         const isUnwatched = (!item.last_watched_season || item.last_watched_season === 0) && (!item.progress || item.progress === 0);
+        const hasProgress = !isUnwatched;
+        
+        // Check if show is actively airing (TMDB might just be slow to update)
+        // Criteria: Last episode aired within last 30 days
+        // We don't rely only on "Returning Series" status because old shows like Mirzapur keep that status for years
+        const isActivelyAiring = (() => {
+            if (lastEp?.air_date) {
+                const lastEpDate = parseDateLocal(lastEp.air_date);
+                if (lastEpDate) {
+                    const thirtyDaysAgo = new Date();
+                    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+                    return lastEpDate >= thirtyDaysAgo;
+                }
+            }
+            return false;
+        })();
+        
+        // If a show is marked as watched (caught up) or watching, allow through even without next episode
+        // BUT only if the show is actively airing (to avoid pulling in all old watched shows)
+        if (['show_watched', 'show_watching'].includes(item.status)) {
+            if (!nextDate) {
+                // Only keep if has progress AND actively airing
+                if (!hasProgress || !isActivelyAiring) return null;
+            }
+        }
+
         if (isUnwatched && nextEp && nextEp.episode_number !== 1) {
             return null;
         }
 
         // Hide active/backlog shows with no next episode info
+        // Only keep if: has progress AND show is actively airing
         if (!nextEp && ['show_ongoing', 'show_returning', 'show_watching'].includes(item.status)) {
-            return null;
+            if (!hasProgress || !isActivelyAiring) return null;
         }
     }
 
