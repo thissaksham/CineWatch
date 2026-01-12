@@ -1,4 +1,5 @@
 import { Clapperboard } from 'lucide-react';
+import styles from '../../../styles/components/Feedback.module.css';
 
 interface FullPageLoaderProps {
   /** App name to display */
@@ -11,11 +12,11 @@ interface FullPageLoaderProps {
  */
 export const FullPageLoader = ({ appName = 'CineTrack' }: FullPageLoaderProps) => {
   return (
-    <div className="fullpage-loader">
-      <div className="fullpage-loader__icon">
+    <div className={styles.fullpageLoader}>
+      <div className={styles.loaderIcon}>
         <Clapperboard size={32} color="var(--primary)" />
       </div>
-      <h1 className="fullpage-loader__title">{appName}</h1>
+      <h1 className={styles.loaderTitle}>{appName}</h1>
     </div>
   );
 };

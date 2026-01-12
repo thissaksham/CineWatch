@@ -8,9 +8,10 @@ import { MovieModal } from '../../movies/components/MovieModal';
 import { ShowModal } from '../../shows/components/ShowModal';
 import { ManualDateModal } from '../../../shared/components/modals/ManualDateModal';
 import { useUpcomingItems, getDaysUntil, type UpcomingItem } from '../hooks/useUpcomingItems';
+import { CardSkeleton } from '../../../shared/components/feedback';
 
 export const UpcomingPage = () => {
-    const { watchlist, markAsWatched, dismissFromUpcoming, removeFromWatchlist, updateWatchlistItemMetadata, updateStatus, moveToLibrary, refreshMetadata, markAsDropped } = useWatchlist();
+    const { watchlist, markAsWatched, dismissFromUpcoming, removeFromWatchlist, updateWatchlistItemMetadata, updateStatus, moveToLibrary, refreshMetadata, markAsDropped, loading } = useWatchlist();
     const navigate = useNavigate();
     const params = useParams();
 
@@ -154,7 +155,9 @@ export const UpcomingPage = () => {
                 />
             </div>
 
-            {upcomingItems.length === 0 ? (
+            {loading ? (
+                <CardSkeleton count={10} />
+            ) : upcomingItems.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-[50vh] text-center p-8 border border-dashed border-white/10 rounded-2xl bg-white/5 mt-10">
                     <div className="w-16 h-16 bg-white/10 rounded-full flex items-center justify-center mb-4 text-3xl">📅</div>
                     <h2 className="text-2xl font-bold text-white mb-2">No Upcoming Releases</h2>

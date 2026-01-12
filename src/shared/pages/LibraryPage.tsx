@@ -15,6 +15,7 @@ import { HistoryCard } from '../components/cards/HistoryCard';
 import { SlidingToggle } from '../components/ui/SlidingToggle';
 import { SmartPillButton } from '../components/ui/SmartPillButton';
 import { Search, ListFilter, Undo2 } from 'lucide-react';
+import { CardSkeleton } from '../components/feedback';
 
 interface LibraryPageProps {
     title: string;
@@ -26,7 +27,7 @@ interface LibraryPageProps {
 }
 
 export const LibraryPage = ({ title, subtitle, watchlistType, tmdbType, emptyMessage, basePath }: LibraryPageProps) => {
-    const { watchlist, removeFromWatchlist, markAsDropped, markAsWatched, markAsUnwatched, restoreFromDropped, restoreToUpcoming } = useWatchlist();
+    const { watchlist, removeFromWatchlist, markAsDropped, markAsWatched, markAsUnwatched, restoreFromDropped, restoreToUpcoming, loading } = useWatchlist();
     const { region } = usePreferences();
     const navigate = useNavigate();
     const params = useParams();
@@ -546,7 +547,9 @@ export const LibraryPage = ({ title, subtitle, watchlistType, tmdbType, emptyMes
             </FilterBar>
 
             {
-                sortedLibrary.length === 0 ? (
+                loading ? (
+                    <CardSkeleton count={10} />
+                ) : sortedLibrary.length === 0 ? (
                     <div className="u-full-center py-20 u-vstack text-center">
                         <p className="u-text-gray">
                             {filterProvider ? "No items found for this provider." : emptyMessage}

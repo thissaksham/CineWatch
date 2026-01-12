@@ -10,6 +10,7 @@ import '../styles/GameCards.css';
 import styles from '../../../shared/components/ui/SmartPillButton.module.css';
 
 import { PlatformSelector } from '../components/PlatformSelector';
+import { CardSkeleton } from '../../../shared/components/feedback';
 
 export const GamesPage = () => {
     const [selectedFranchise, setSelectedFranchise] = useState<Franchise | null>(null);
@@ -93,7 +94,7 @@ export const GamesPage = () => {
         };
     }, [isSortOpen]);
 
-    const { libraryGames, updateStatus, updatePlatform, removeGame } = useGameLibrary();
+    const { libraryGames, updateStatus, updatePlatform, removeGame, isLoading } = useGameLibrary();
     // -------------------------------------------------------------------------
     // 4. DATA PROCESSING (Memoized)
     // -------------------------------------------------------------------------
@@ -365,28 +366,34 @@ export const GamesPage = () => {
             </header>
 
             <div className="games-grid">
-                {/* Franchises */}
-                {activeFranchises.map((franchise) => (
-                    <FranchiseCard
-                        key={franchise.id}
-                        franchise={franchise}
-                        onClick={() => setSelectedFranchise(franchise)}
-                    />
-                ))}
+                {isLoading ? (
+                    <CardSkeleton count={10} />
+                ) : (
+                    <>
+                        {/* Franchises */}
+                        {activeFranchises.map((franchise) => (
+                            <FranchiseCard
+                                key={franchise.id}
+                                franchise={franchise}
+                                onClick={() => setSelectedFranchise(franchise)}
+                            />
+                        ))}
 
-                {/* Single Games */}
-                {activeGames.map((game) => (
-                    <GameCard
-                        key={game.id}
-                        game={game}
-                        onStatusChange={(status) => updateStatus({ id: game.id, status })}
-                        onRemove={() => removeGame(game.id)}
-                        onPlatformClick={(g) => setEditingPlatformGame(g)}
-                    />
-                ))}
+                        {/* Single Games */}
+                        {activeGames.map((game) => (
+                            <GameCard
+                                key={game.id}
+                                game={game}
+                                onStatusChange={(status) => updateStatus({ id: game.id, status })}
+                                onRemove={() => removeGame(game.id)}
+                                onPlatformClick={(g) => setEditingPlatformGame(g)}
+                            />
+                        ))}
+                    </>
+                )}
             </div>
 
-            {activeGames.length === 0 && activeFranchises.length === 0 && (
+            {!isLoading && activeGames.length === 0 && activeFranchises.length === 0 && (
                 <div className="u-full-center py-20 u-vstack text-center" style={{ color: '#94a3b8' }}>
                     <div style={{
                         background: 'rgba(255, 255, 255, 0.05)',
