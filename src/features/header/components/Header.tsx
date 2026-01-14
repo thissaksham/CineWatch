@@ -22,7 +22,7 @@ export const Header = () => {
 
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [isAddOpen, setIsAddOpen] = useState(false);
-    
+
     const getSearchType = (path: string) => {
         if (path.startsWith('/movies')) return 'movie';
         if (path.startsWith('/shows')) return 'tv';
@@ -216,7 +216,7 @@ export const Header = () => {
 
             {/* Mobile Nav Menu */}
             {mobileMenuOpen && (
-                <div style={{ background: 'var(--surface)', padding: '1rem', borderBottom: '1px solid var(--border)' }}>
+                <div className="mobile-menu-overlay">
                     {navItems.map((item) => (
                         <NavLink
                             key={item.name}

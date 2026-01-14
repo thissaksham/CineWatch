@@ -46,9 +46,17 @@ export const SmartPillButton = ({
     }, [activeIndex]);
 
     useLayoutEffect(() => {
-        updateHighlight();
+        // Defer highlight update to ensure DOM is fully measured
+        // Increased delay to allow flex layout (space-around) to settle
+        const timeoutId = setTimeout(() => {
+            updateHighlight();
+        }, 50);
+
         window.addEventListener('resize', updateHighlight);
-        return () => window.removeEventListener('resize', updateHighlight);
+        return () => {
+            clearTimeout(timeoutId);
+            window.removeEventListener('resize', updateHighlight);
+        };
     }, [activeIndex, seriesStatus, updateHighlight]);
 
     const handleClick = (index: number) => {

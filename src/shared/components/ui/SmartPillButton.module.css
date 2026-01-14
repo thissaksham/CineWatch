@@ -106,3 +106,49 @@
     letter-spacing: 0.3px;
     color: inherit;
 }
+
+/* Mobile Responsive Fixes for Small Screens */
+@media (max-width: 430px) {
+    .pill-button {
+        min-height: 32px;
+        padding: 2px;
+    }
+
+    .pill-button-selection {
+        padding: 0 8px;
+        font-size: 11px;
+    }
+
+    .sub-text {
+        font-size: 0.5em;
+        letter-spacing: 0.1px;
+    }
+
+    .pill-button-highlight {
+        top: 2px;
+        bottom: 2px;
+        left: 2px;
+    }
+}
+
+@media (max-width: 375px) {
+    .pill-button {
+        min-height: 30px;
+        padding: 2px;
+    }
+
+    .pill-button-selection {
+        padding: 0 6px;
+        font-size: 10px;
+    }
+
+    .sub-text {
+        font-size: 0.45em;
+    }
+
+    .pill-button-highlight {
+        top: 2px;
+        bottom: 2px;
+        left: 2px;
+    }
+}
