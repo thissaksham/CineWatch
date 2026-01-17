@@ -81,7 +81,8 @@ const fetchWatchmodeFallback = async (tmdbId: number, type: 'movie' | 'tv', regi
  * @param supabase - Supabase client instance
  * @returns true if lock acquired, false if another job is running
  */
-async function acquireRefreshLock(supabase: ReturnType<typeof createClient>): Promise<boolean> {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function acquireRefreshLock(supabase: any): Promise<boolean> {
     const LOCK_NAME = 'refresh_job';
     const TIMEOUT_MINUTES = 60; // Lock expires after 1 hour
     
@@ -107,7 +108,8 @@ async function acquireRefreshLock(supabase: ReturnType<typeof createClient>): Pr
  * Releases the database table-based lock
  * @param supabase - Supabase client instance
  */
-async function releaseRefreshLock(supabase: ReturnType<typeof createClient>): Promise<void> {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function releaseRefreshLock(supabase: any): Promise<void> {
     const LOCK_NAME = 'refresh_job';
     
     try {
