@@ -94,9 +94,62 @@ export default async function handler(request: any, response: any) {
                 if (item.type === 'show') {
                     newStatus = determineShowStatus(details as TMDBMedia, item.last_watched_season || 0, item.progress || 0);
                 } else {
+                    // Movie logic - check providers, digital dates, and global availability
                     const providers = details['watch/providers']?.results?.[region];
                     const hasProviders = (providers?.flatrate?.length > 0) || (providers?.ads?.length > 0);
-                    if (hasProviders && item.status === 'movie_coming_soon') {
+                    
+                    // Extract digital release date from release_dates
+                    let digitalDate: string | null = null;
+                    if (details.release_dates?.results) {
+                        const regionData = details.release_dates.results.find((r: any) => r.iso_3166_1 === region);
+                        if (regionData?.release_dates) {
+                            // Priority: Digital (Type 4) -> Physical (Type 5)
+                            const digital = regionData.release_dates.find((d: any) => d.type === 4) || 
+                                          regionData.release_dates.find((d: any) => d.type === 5);
+                            digitalDate = digital?.release_date || null;
+                        }
+                    }
+                    
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    
+                    const digitalDateObj = digitalDate ? new Date(digitalDate) : null;
+                    const releaseDateObj = details.release_date ? new Date(details.release_date) : null;
+                    const hasFutureDigitalDate = digitalDateObj && digitalDateObj > today;
+                    const isReleased = !releaseDateObj || releaseDateObj <= today;
+                    const hasValidDigitalTransition = item.status === 'movie_coming_soon' && isReleased && !!digitalDateObj;
+                    
+                    // Check if movie is old (>1 year) or globally available (>6 months)
+                    let isOldOrGloballyAvailable = false;
+                    if (releaseDateObj) {
+                        const oneYearAgo = new Date();
+                        oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+                        const sixMonthsAgo = new Date();
+                        sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+                        
+                        if (releaseDateObj < oneYearAgo) {
+                            isOldOrGloballyAvailable = true;
+                        } else if (releaseDateObj < sixMonthsAgo) {
+                            // Check global availability
+                            const allProviders = details['watch/providers']?.results || {};
+                            for (const r in allProviders) {
+                                const p = allProviders[r];
+                                if ((p.flatrate || []).length > 0 || (p.rent || []).length > 0 || (p.buy || []).length > 0) {
+                                    isOldOrGloballyAvailable = true;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    
+                    // Apply "Gatekeeper Rule" from MOVIE_LOGIC.md - only upgrade to movie_on_ott from movie_coming_soon
+                    if (item.status === 'movie_coming_soon') {
+                        if (hasProviders || hasFutureDigitalDate || hasValidDigitalTransition || isOldOrGloballyAvailable) {
+                            newStatus = 'movie_on_ott';
+                        }
+                    }
+                    // Keep movie_on_ott status if already set
+                    else if (item.status === 'movie_on_ott') {
                         newStatus = 'movie_on_ott';
                     }
                 }
