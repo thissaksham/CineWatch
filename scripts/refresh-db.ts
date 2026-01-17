@@ -3,6 +3,65 @@ import 'dotenv/config';
 import { determineShowStatus, pruneMetadata, type WatchStatus } from '../src/lib/watchlist-shared';
 import type { TMDBMedia } from '../src/lib/tmdb';
 
+// --- DNS Bypass for TMDB (ISP Blocking Workaround) ---
+
+let TMDB_IP: string | null = null;
+
+/**
+ * Resolves TMDB IP using Google DNS to bypass ISP blocking
+ * Caches result for the script lifetime
+ */
+async function resolveTMDBIP(): Promise<string | null> {
+    if (TMDB_IP) return TMDB_IP; // Return cached IP
+    
+    try {
+        console.log('[DNS] Resolving api.themoviedb.org via Google DNS...');
+        const res = await fetch('https://dns.google/resolve?name=api.themoviedb.org');
+        const data = await res.json() as { Answer?: { type: number; data: string }[] };
+        const ip = data.Answer?.find(a => a.type === 1)?.data; // Type 1 is A Record
+        
+        if (ip && typeof ip === 'string') {
+            TMDB_IP = ip.trim();
+            console.log(`[DNS] Resolved TMDB to: ${TMDB_IP}`);
+            return TMDB_IP;
+        }
+    } catch (e) {
+        console.warn('[DNS] Google DNS resolution failed, will use hostname:', e);
+    }
+    
+    return null;
+}
+
+/**
+ * Fetch wrapper that uses resolved TMDB IP if available
+ * Falls back to normal fetch if DNS resolution fails
+ */
+async function fetchTMDB(url: string, options: RequestInit = {}): Promise<Response> {
+    const urlObj = new URL(url);
+    
+    // Only apply DNS bypass for TMDB domains
+    if (!urlObj.hostname.includes('themoviedb.org')) {
+        return fetch(url, options);
+    }
+    
+    const tmdbIP = await resolveTMDBIP();
+    
+    if (tmdbIP) {
+        // Replace hostname with IP, but preserve Host header
+        const directUrl = url.replace(urlObj.hostname, tmdbIP);
+        return fetch(directUrl, {
+            ...options,
+            headers: {
+                ...options.headers,
+                'Host': urlObj.hostname  // Required for SNI/TLS
+            }
+        });
+    }
+    
+    // Fallback to normal fetch
+    return fetch(url, options);
+}
+
 // --- Helper Functions ---
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -182,9 +241,16 @@ async function runRefresh() {
             const batchResults = await Promise.all(batch.map(async (item) => {
                 try {
                     const tmdbType = item.type === 'show' ? 'tv' : 'movie';
-                    console.log(`[Processing] ${item.type.toUpperCase()}: ${item.title}`);
+                    console.log(`[Processing] ${tmdbType.toUpperCase()}: ${item.title || 'Unknown'}`);
                     
-                    const detailsRes = await fetch(`https://api.themoviedb.org/3/${tmdbType}/${item.tmdb_id}?api_key=${TMDB_API_KEY}&append_to_response=watch/providers,videos,external_ids,release_dates`);
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 12000); // 12s timeout (increased from 8s)
+                    
+                    const detailsRes = await fetchTMDB(
+                        `https://api.themoviedb.org/3/${tmdbType}/${item.tmdb_id}?api_key=${TMDB_API_KEY}&append_to_response=watch/providers,videos,external_ids,release_dates`,
+                        { signal: controller.signal }
+                    );
+                    clearTimeout(timeoutId);
                     if (!detailsRes.ok) throw new Error(`TMDB Fetch Failed`);
                     
                     const details = await detailsRes.json();
