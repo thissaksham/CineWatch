@@ -122,3 +122,61 @@ export const sanitizeString = (str: string): string => {
   // Remove control characters except newlines and tabs
   return str.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
 };
+
+/**
+ * Sanitizes search input for database queries
+ * Removes control characters and limits length to prevent injection attacks
+ * @param input - Raw search string from user
+ * @param maxLength - Maximum allowed length (default: 200)
+ * @returns Cleaned and truncated search string
+ * @throws Error if input is not a string
+ */
+export function sanitizeSearchInput(input: string, maxLength: number = 200): string {
+    if (typeof input !== 'string') {
+        throw new Error('Search input must be a string');
+    }
+    
+    // Remove control characters (0x00-0x1f, 0x7f) and normalize whitespace
+    const cleaned = input
+        .replace(/[\x00-\x1f\x7f]/g, '') // Remove control chars
+        .replace(/\s+/g, ' ') // Normalize whitespace
+        .trim();
+    
+    return cleaned.slice(0, maxLength);
+}
+
+/**
+ * Validates UUID v4 format
+ * @param id - String to validate as UUID
+ * @returns true if valid UUID v4, false otherwise
+ */
+export function validateUUID(id: string): boolean {
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    return uuidRegex.test(id);
+}
+
+/**
+ * Sanitizes and validates TMDB ID
+ * @param id - TMDB ID as number or string
+ * @returns Valid TMDB ID as number
+ * @throws Error if ID is invalid
+ */
+export function sanitizeTMDBId(id: number | string): number {
+    const numId = typeof id === 'string' ? parseInt(id, 10) : id;
+    
+    if (!Number.isInteger(numId) || numId <= 0 || numId > 999999999) {
+        throw new Error('Invalid TMDB ID');
+    }
+    
+    return numId;
+}
+
+/**
+ * Validates ISO 3166-1 alpha-2 country code
+ * @param code - Two-letter country code
+ * @returns true if valid ISO country code format, false otherwise
+ */
+export function validateRegionCode(code: string): boolean {
+    // ISO 3166-1 alpha-2 country codes (2 uppercase letters)
+    return /^[A-Z]{2}$/.test(code);
+}

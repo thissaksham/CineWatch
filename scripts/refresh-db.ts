@@ -73,6 +73,55 @@ const fetchWatchmodeFallback = async (tmdbId: number, type: 'movie' | 'tv', regi
     return null;
 };
 
+// --- Job Lock Functions (Database Table-Based) ---
+
+/**
+ * Acquires a database table-based lock to prevent concurrent refresh jobs
+ * Uses INSERT with ON CONFLICT to atomically check and acquire locks
+ * @param supabase - Supabase client instance
+ * @returns true if lock acquired, false if another job is running
+ */
+async function acquireRefreshLock(supabase: ReturnType<typeof createClient>): Promise<boolean> {
+    const LOCK_NAME = 'refresh_job';
+    const TIMEOUT_MINUTES = 60; // Lock expires after 1 hour
+    
+    try {
+        const { data, error } = await supabase.rpc('try_acquire_job_lock', {
+            p_lock_name: LOCK_NAME,
+            p_timeout_minutes: TIMEOUT_MINUTES
+        } as any);
+        
+        if (error) {
+            console.error('[Lock] Failed to acquire lock:', error);
+            return false;
+        }
+        
+        return data === true;
+    } catch (e) {
+        console.error('[Lock] Exception while acquiring lock:', e);
+        return false;
+    }
+}
+
+/**
+ * Releases the database table-based lock
+ * @param supabase - Supabase client instance
+ */
+async function releaseRefreshLock(supabase: ReturnType<typeof createClient>): Promise<void> {
+    const LOCK_NAME = 'refresh_job';
+    
+    try {
+        const { error } = await supabase.rpc('release_job_lock', {
+            p_lock_name: LOCK_NAME
+        } as any);
+        
+        if (error) {
+            console.error('[Lock] Failed to release lock:', error);
+        }
+    } catch (e) {
+        console.error('[Lock] Exception while releasing lock:', e);
+    }
+}
 
 
 // --- Main Execution ---
@@ -93,6 +142,15 @@ async function runRefresh() {
     }
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+
+    // Acquire advisory lock to prevent concurrent refresh jobs
+    console.log('Attempting to acquire refresh lock...');
+    const lockAcquired = await acquireRefreshLock(supabase);
+    if (!lockAcquired) {
+        console.log('[Refresh] Another refresh job is running. Exiting.');
+        process.exit(0);
+    }
+    console.log('Lock acquired successfully.');
 
     try {
         console.log('Fetching items to refresh from Supabase...');
@@ -233,6 +291,10 @@ async function runRefresh() {
     } catch (err: unknown) {
         console.error('CRITICAL: Refresh Job Failed:', err);
         process.exit(1);
+    } finally {
+        // Always release the lock
+        console.log('Releasing refresh lock...');
+        await releaseRefreshLock(supabase);
     }
 }
 

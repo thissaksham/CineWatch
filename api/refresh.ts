@@ -6,7 +6,25 @@ import type { TMDBMedia } from '../src/lib/tmdb';
  * Refresh API Handler
  * Called by Vercel Cron to refresh watchlist metadata.
  * Protected by CRON_SECRET - requests without valid authorization are rejected.
+ * 
+ * Note: Vercel Cron on free tier has 10s timeout, so this is kept for manual testing only.
+ * Primary refresh runs via GitHub Actions (6-hour timeout).
  */
+
+// Timing-safe comparison to prevent timing attacks
+async function secureCompare(a: string, b: string): Promise<boolean> {
+    if (!a || !b || a.length !== b.length) return false;
+    
+    try {
+        const { timingSafeEqual } = await import('crypto');
+        return timingSafeEqual(
+            Buffer.from(a, 'utf8'),
+            Buffer.from(b, 'utf8')
+        );
+    } catch {
+        return false;
+    }
+}
 
 // --- Handler ---
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -19,8 +37,10 @@ export default async function handler(request: any, response: any) {
         return response.status(500).json({ error: 'Server misconfiguration: CRON_SECRET not set' });
     }
     
-    const authHeader = request.headers['authorization'];
-    if (authHeader !== `Bearer ${cronSecret}`) {
+    const authHeader = request.headers['authorization'] || '';
+    const expectedAuth = `Bearer ${cronSecret}`;
+    
+    if (!(await secureCompare(authHeader, expectedAuth))) {
         console.warn('[Refresh] Unauthorized request attempt');
         return response.status(401).json({ error: 'Unauthorized' });
     }

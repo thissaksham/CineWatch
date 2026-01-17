@@ -43,11 +43,5 @@
             "source": "/(.*)",
             "destination": "/index.html"
         }
-    ],
-    "crons": [
-        {
-            "path": "/api/refresh",
-            "schedule": "0 0 * * *"
-        }
     ]
 }
