@@ -4,7 +4,7 @@
  */
 
 // Use file-based rate limiter (persists across cold starts)
-const { isRateLimited, getRateLimitKey } = require('./rateLimit');
+import { isRateLimited, getRateLimitKey } from './rateLimit.js';
 
 
 function isValidOrigin(request) {

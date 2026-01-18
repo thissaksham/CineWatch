@@ -4,8 +4,8 @@
  * More reliable than in-memory Map which resets on every cold start
  */
 
-const fs = require('fs');
-const path = require('path');
+import fs from 'fs';
+import path from 'path';
 
 // Store rate limit data in /tmp (available in Vercel)
 const RATE_LIMIT_FILE = path.join('/tmp', 'rate-limits.json');
@@ -67,7 +67,7 @@ function isRateLimited(request) {
     return false;
 }
 
-module.exports = {
+export {
     isRateLimited,
     getRateLimitKey
 };
