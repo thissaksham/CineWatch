@@ -44,22 +44,29 @@ async function fetchTMDB(url: string, options: RequestInit = {}): Promise<Respon
         return fetch(url, options);
     }
     
-    const tmdbIP = await resolveTMDBIP();
-    
-    if (tmdbIP) {
-        // Replace hostname with IP, but preserve Host header
-        const directUrl = url.replace(urlObj.hostname, tmdbIP);
-        return fetch(directUrl, {
-            ...options,
-            headers: {
-                ...options.headers,
-                'Host': urlObj.hostname  // Required for SNI/TLS
-            }
-        });
+    // Try direct hostname first (works if DNS is functional)
+    try {
+        return await fetch(url, options);
+    } catch (directError) {
+        console.warn('[DNS] Direct hostname failed, trying Google DNS bypass...');
+        
+        // Fallback: Resolve via Google DNS and try IP
+        const tmdbIP = await resolveTMDBIP();
+        
+        if (tmdbIP) {
+            const directUrl = url.replace(urlObj.hostname, tmdbIP);
+            return fetch(directUrl, {
+                ...options,
+                headers: {
+                    ...options.headers,
+                    'Host': urlObj.hostname
+                }
+            });
+        }
+        
+        // Re-throw original error if everything fails
+        throw directError;
     }
-    
-    // Fallback to normal fetch
-    return fetch(url, options);
 }
 
 // --- Helper Functions ---
@@ -76,6 +83,8 @@ const mapWatchmodeSource = (s: any) => ({
 });
 
 let currentWMKeyIndex = 0;
+let watchmodeCallsThisRun = 0;
+const MAX_WATCHMODE_CALLS_PER_RUN = 20; // Limit to ~20 calls per refresh (40 API requests total)
 
 const fetchWatchmodeFallback = async (tmdbId: number, type: 'movie' | 'tv', region: string, apiKeys: string[]) => {
     if (!apiKeys || apiKeys.length === 0) return null;
@@ -244,7 +253,7 @@ async function runRefresh() {
                     console.log(`[Processing] ${tmdbType.toUpperCase()}: ${item.title || 'Unknown'}`);
                     
                     const controller = new AbortController();
-                    const timeoutId = setTimeout(() => controller.abort(), 12000); // 12s timeout (increased from 8s)
+                    const timeoutId = setTimeout(() => controller.abort(), 20000); // 20s timeout (increased for reliability)
                     
                     const detailsRes = await fetchTMDB(
                         `https://api.themoviedb.org/3/${tmdbType}/${item.tmdb_id}?api_key=${TMDB_API_KEY}&append_to_response=watch/providers,videos,external_ids,release_dates`,
@@ -263,8 +272,16 @@ async function runRefresh() {
                         const providers = details['watch/providers']?.results?.[region];
                         let hasProviders = (providers?.flatrate?.length > 0) || (providers?.ads?.length > 0);
                         
-                        // Watchmode fallback for providers
-                        if (!hasProviders && WATCHMODE_API_KEYS.length > 0) {
+                        // Watchmode fallback ONLY for movies that:
+                        // 1. Have no TMDB providers AND
+                        // 2. Are recently released (< 1 year old) AND  
+                        // 3. Haven't exhausted our call limit this run
+                        const releaseDate = details.release_date;
+                        const isRecentRelease = releaseDate && (new Date().getTime() - new Date(releaseDate).getTime()) < 365 * 24 * 60 * 60 * 1000;
+                        
+                        if (!hasProviders && WATCHMODE_API_KEYS.length > 0 && isRecentRelease && watchmodeCallsThisRun < MAX_WATCHMODE_CALLS_PER_RUN) {
+                            watchmodeCallsThisRun++;
+                            console.log(`[Watchmode] Calling for recent movie (${watchmodeCallsThisRun}/${MAX_WATCHMODE_CALLS_PER_RUN})`);
                             const wmProviders = await fetchWatchmodeFallback(item.tmdb_id, item.type as 'movie' | 'tv', region, WATCHMODE_API_KEYS);
                             if (wmProviders) {
                                 details['watch/providers'] = { results: { [region]: wmProviders } };
