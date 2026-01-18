@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Layers, Hash, Hourglass } from 'lucide-react';
+import { X, Layers, Hash, Hourglass, RefreshCw } from 'lucide-react';
 import { type TMDBMedia, type Video } from '../../../lib/tmdb';
 import { useMediaDetails } from '../../media/hooks/useTMDB';
 import { useWatchlist } from '../../watchlist/context/WatchlistContext';
@@ -17,14 +17,15 @@ interface ShowModalProps {
 }
 
 export const ShowModal = ({ media, onClose }: ShowModalProps) => {
-    const { watchlist, markSeasonWatched, markSeasonUnwatched, updateProgress } = useWatchlist();
+    const { watchlist, markSeasonWatched, markSeasonUnwatched, updateProgress, refreshMetadata } = useWatchlist();
     const { region } = usePreferences();
 
     // React Query Hook
-    const { data: details, isLoading } = useMediaDetails(media.id, 'tv');
+    const { data: details, isLoading, refetch } = useMediaDetails(media.id, 'tv');
 
     const [hoveredSeason, setHoveredSeason] = useState<number | null>(null);
     const [showTrailer, setShowTrailer] = useState(false);
+    const [isRefreshing, setIsRefreshing] = useState(false);
 
     const watchlistItem = watchlist.find(i => i.tmdb_id === media.id && i.type === 'show');
     const isAdded = !!watchlistItem;
@@ -46,6 +47,21 @@ export const ShowModal = ({ media, onClose }: ShowModalProps) => {
     const detailsSeasons = details?.seasons;
     const showSkeleton = isLoading && !detailsSeasons && !mediaSeasons;
     const resolvedSeasons = detailsSeasons || mediaSeasons;
+
+    const handleRefresh = async () => {
+        if (!isAdded || isRefreshing) return;
+        setIsRefreshing(true);
+        try {
+            // Refresh metadata in database
+            await refreshMetadata(media.id, 'show');
+            // Refetch details from TMDB
+            await refetch();
+        } catch (error) {
+            console.error('Failed to refresh metadata:', error);
+        } finally {
+            setIsRefreshing(false);
+        }
+    };
 
     const extraTags = (
         <>
@@ -105,7 +121,41 @@ export const ShowModal = ({ media, onClose }: ShowModalProps) => {
 
                             return (
                                 <div className="seasons-section mb-8">
-                                    <div className="section-label">Seasons</div>
+                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+                                        <div className="section-label" style={{ marginBottom: 0 }}>Seasons</div>
+                                        {isAdded && (
+                                            <button
+                                                onClick={handleRefresh}
+                                                disabled={isRefreshing}
+                                                style={{
+                                                    background: 'rgba(255,255,255,0.1)',
+                                                    border: '1px solid rgba(255,255,255,0.2)',
+                                                    borderRadius: '6px',
+                                                    padding: '6px 12px',
+                                                    color: 'white',
+                                                    cursor: isRefreshing ? 'not-allowed' : 'pointer',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    gap: '6px',
+                                                    fontSize: '12px',
+                                                    transition: 'all 0.2s',
+                                                    opacity: isRefreshing ? 0.5 : 1
+                                                }}
+                                                onMouseEnter={(e) => {
+                                                    if (!isRefreshing) {
+                                                        e.currentTarget.style.background = 'rgba(255,255,255,0.15)';
+                                                    }
+                                                }}
+                                                onMouseLeave={(e) => {
+                                                    e.currentTarget.style.background = 'rgba(255,255,255,0.1)';
+                                                }}
+                                                title="Refresh episode counts from TMDB"
+                                            >
+                                                <RefreshCw size={14} style={{ animation: isRefreshing ? 'spin 1s linear infinite' : 'none' }} />
+                                                {isRefreshing ? 'Refreshing...' : 'Refresh'}
+                                            </button>
+                                        )}
+                                    </div>
                                     <div className="seasons-grid" onMouseLeave={() => setHoveredSeason(null)}>
                                         {validSeasons.map(season => {
                                             const seasonNum = Number(season.season_number);

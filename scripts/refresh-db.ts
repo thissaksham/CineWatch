@@ -224,19 +224,66 @@ async function runRefresh() {
 
     try {
         console.log('Fetching items to refresh from Supabase...');
-        const { data: candidates, error: fetchError } = await supabase
+        const { data: allItems, error: fetchError } = await supabase
             .from('watchlist')
             .select('*')
-            .in('status', ['movie_coming_soon', 'movie_on_ott', 'show_returning', 'show_ongoing', 'show_watching', 'show_new', 'show_watched'])
-            .order('created_at', { ascending: true }); // No limit, fetch all
+            .order('created_at', { ascending: true });
 
         if (fetchError) throw fetchError;
-        if (!candidates || candidates.length === 0) {
+        if (!allItems || allItems.length === 0) {
             console.log('No items found for refresh.');
             return;
         }
 
-        console.log(`Found ${candidates.length} items to process.`);
+        // Filter candidates: Include all shows except truly ended ones
+        // For movies: only coming_soon and on_ott need updates
+        const candidates = allItems.filter(item => {
+            // Movies: Only refresh if coming_soon or on_ott
+            if (item.type === 'movie') {
+                return ['movie_coming_soon', 'movie_on_ott'].includes(item.status);
+            }
+            
+            // Shows: Refresh ALL unless TMDB status is "Ended" or "Canceled"
+            if (item.type === 'show') {
+                const tmdbStatus = item.metadata?.status || item.metadata?.tmdb_status;
+                
+                // Always refresh if not ended/canceled
+                if (tmdbStatus !== 'Ended' && tmdbStatus !== 'Canceled') {
+                    return true;
+                }
+                
+                // For ended/canceled shows, still refresh periodically to catch:
+                // 1. Revivals/uncancelations (status change to "Returning Series")
+                // 2. Final episode count corrections
+                // 3. Reboots or continuation announcements
+                const lastUpdated = item.metadata?.last_updated_at || 0;
+                const daysSinceUpdate = (Date.now() - lastUpdated) / (1000 * 60 * 60 * 24);
+                
+                // Refresh ended/canceled shows every 14 days (catches revivals faster than 30 days)
+                // Still respects rate limits while being responsive to status changes
+                if (daysSinceUpdate > 14) {
+                    return true;
+                }
+                
+                // Also refresh if the show has future seasons announced (revival indicator)
+                // Even if TMDB status still shows "Ended", there might be new season data
+                const hasFutureSeasons = item.metadata?.seasons?.some((s: any) => {
+                    if (s.season_number === 0) return false; // Skip specials
+                    const airDate = s.air_date ? new Date(s.air_date) : null;
+                    return airDate && airDate > new Date(); // Future air date
+                });
+                
+                if (hasFutureSeasons) {
+                    return true; // Likely a revival - refresh it
+                }
+                
+                return false; // Skip if ended, recently updated, and no future seasons
+            }
+            
+            return false;
+        });
+
+        console.log(`Found ${candidates.length} items to process (${allItems.length} total in watchlist).`);
 
         // Priority-based sorting: Process items that need updates most urgently
         const prioritizedCandidates = candidates.sort((a, b) => {

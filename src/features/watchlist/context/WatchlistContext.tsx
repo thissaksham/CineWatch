@@ -71,11 +71,40 @@ export function WatchlistProvider({ children }: { children: React.ReactNode }) {
         console.log('🏥 Performing Global Health Check...');
         const sickItems = watchlist.filter(item => {
             const meta = (item.metadata || {}) as TMDBMedia;
+
+            // Check for completely broken metadata (missing critical fields)
             if (item.type === 'show') {
                 const hasNext = !!meta.next_episode_to_air;
                 const hasLast = !!meta.last_episode_to_air;
-                if (!hasNext && !hasLast) return true;
+                if (!hasNext && !hasLast) return true; // Completely broken
+
+                // Simplified staleness check: Refresh all non-ended shows periodically
+                const tmdbStatus = meta.status || meta.tmdb_status;
+
+                // If not ended/canceled, check staleness
+                if (tmdbStatus !== 'Ended' && tmdbStatus !== 'Canceled') {
+                    const lastUpdated = meta.last_updated_at || 0;
+                    const daysSinceUpdate = (Date.now() - lastUpdated) / (1000 * 60 * 60 * 24);
+
+                    // Refresh if >7 days old (catches episode count updates)
+                    if (daysSinceUpdate > 7) return true;
+                }
+
+                // For ended/canceled shows, check for revival indicators
+                if (tmdbStatus === 'Ended' || tmdbStatus === 'Canceled') {
+                    // Check if show has future seasons (revival/reboot indicator)
+                    const hasFutureSeasons = meta.seasons?.some(s => {
+                        if (s.season_number === 0) return false;
+                        const airDate = s.air_date ? new Date(s.air_date) : null;
+                        return airDate && airDate > new Date();
+                    });
+
+                    if (hasFutureSeasons) {
+                        return true; // Likely revived - needs update
+                    }
+                }
             }
+
             if (item.type === 'movie' && !meta.release_date) return true;
             return false;
         });
