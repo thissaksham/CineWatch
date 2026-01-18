@@ -1,5 +1,6 @@
 const TMDB_API_KEY = import.meta.env.VITE_TMDB_API_KEY;
 import { fetchWatchmodeDetails } from './watchmode';
+import { TIMEOUTS } from '../constants/timeouts';
 const BASE_URL = '/api/tmdb';
 
 if (!TMDB_API_KEY) {
@@ -81,14 +82,14 @@ async function fetchTMDB(endpoint: string, params: Record<string, string> = {}, 
     console.log(`[TMDB] Fetching: ${safeUrl}`);
 
     const controller = new AbortController();
-    const id = setTimeout(() => controller.abort(), 60000); // 60s timeout for mobile stability
+    const timeoutId = setTimeout(() => controller.abort(), TIMEOUTS.API_STANDARD); // 10s for user requests
 
     try {
         const res = await fetch(url, {
             headers: getHeaders(),
             signal: controller.signal
         });
-        clearTimeout(id);
+        clearTimeout(timeoutId);
 
         if (!res.ok) {
             const errBody = await res.json().catch(() => ({}));
@@ -99,7 +100,7 @@ async function fetchTMDB(endpoint: string, params: Record<string, string> = {}, 
 
         return res.json();
     } catch (error: unknown) {
-        clearTimeout(id);
+        clearTimeout(timeoutId);
         console.error('[TMDB] Network/Fetch Error:', error);
         if (error instanceof Error && error.name === 'AbortError') {
             const safeUrl = url.replace(/api_key=[^&]*&?/i, 'api_key=HIDDEN&');

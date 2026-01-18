@@ -238,6 +238,34 @@ async function runRefresh() {
 
         console.log(`Found ${candidates.length} items to process.`);
 
+        // Priority-based sorting: Process items that need updates most urgently
+        const prioritizedCandidates = candidates.sort((a, b) => {
+            // Priority 1: movies_coming_soon with recent release dates (likely released)
+            const aIsComingSoon = a.status === 'movie_coming_soon';
+            const bIsComingSoon = b.status === 'movie_coming_soon';
+            if (aIsComingSoon !== bIsComingSoon) return aIsComingSoon ? -1 : 1;
+            
+            // Priority 2: Items not updated recently (staleness)
+            const aUpdated = new Date(a.updated_at || a.created_at).getTime();
+            const bUpdated = new Date(b.updated_at || b.created_at).getTime();
+            const staleness = aUpdated - bUpdated;
+            if (Math.abs(staleness) > 7 * 24 * 60 * 60 * 1000) return staleness; // 7 days diff
+            
+            // Priority 3: Release date proximity (upcoming releases)
+            const aMetadata = a.metadata as { release_date?: string } | null;
+            const bMetadata = b.metadata as { release_date?: string } | null;
+            const aRelease = aMetadata?.release_date ? new Date(aMetadata.release_date).getTime() : Infinity;
+            const bRelease = bMetadata?.release_date ? new Date(bMetadata.release_date).getTime() : Infinity;
+            const now = Date.now();
+            const aProximity = Math.abs(aRelease - now);
+            const bProximity = Math.abs(bRelease - now);
+            
+            return aProximity - bProximity; // Closer release dates first
+        });
+
+        console.log(`[Priority] Top item: ${prioritizedCandidates[0]?.title} (${prioritizedCandidates[0]?.status})`);
+
+
         const BATCH_SIZE = 10;
         const DELAY_MS = 60000; // 1 minute between batches
         let processedCount = 0;
