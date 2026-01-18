@@ -136,6 +136,8 @@ export const SearchModal = ({ isOpen, onClose, type: initialType, onSuccess, ini
     if (!isOpen) return null;
 
     const displayResults = query.trim() ? results : [];
+    // Check if we're still waiting for debounced query to catch up
+    const isDebouncing = sanitizedQuery !== debouncedQuery;
     const itemsToShow = displayResults.filter((item: TMDBMedia | Game) => {
         // Relaxed Filter: Allow items without a date or poster
         // DiscoveryCard handles missing posters with a placeholder.
@@ -226,14 +228,14 @@ export const SearchModal = ({ isOpen, onClose, type: initialType, onSuccess, ini
                                         />
                                     );
                                 })}
-                                {results.length === 0 && !isSearching && query.trim() && (
+                                {results.length === 0 && !isSearching && !isDebouncing && query.trim() && (
                                     <div className="col-span-full text-center py-20 text-gray-400">
                                         No games found. Try a different search!
                                     </div>
                                 )}
                             </div>
                         ) : (
-                            itemsToShow.length === 0 && !isSearching && query.trim() ? (
+                            itemsToShow.length === 0 && !isSearching && !isDebouncing && query.trim() ? (
                                 <div className="text-center py-20 text-gray-400">
                                     No discovery found. Try a different search!
                                 </div>
