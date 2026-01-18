@@ -4,6 +4,7 @@ import { useSearch } from '../../media/hooks/useTMDB';
 import { useGameSearch } from '../../games/hooks/useGames';
 import { useGameLibrary } from '../../games/hooks/useGameLibrary';
 import { useDebounce } from '../hooks/useDebounce';
+import { sanitizeSearchInput } from '../../../utils/validation';
 import type { TMDBMedia } from '../../../lib/tmdb';
 import type { Game } from '../../../types';
 import { useWatchlist } from '../../watchlist/context/WatchlistContext';
@@ -36,8 +37,9 @@ export const SearchModal = ({ isOpen, onClose, type: initialType, onSuccess, ini
         prevIsOpenRef.current = isOpen;
     }, [isOpen, initialQuery, initialType]);
 
-    // Debounce query to prevent excessive API calls
-    const debouncedQuery = useDebounce(query, 300);
+    // Sanitize and debounce query to prevent excessive API calls and injection attacks
+    const sanitizedQuery = sanitizeSearchInput(query, 100);
+    const debouncedQuery = useDebounce(sanitizedQuery, 300);
 
     // React Query Hook - Only search if not 'game'
     const {
