@@ -267,8 +267,8 @@ export const getEnrichedMetadata = async (tmdbId: number, type: 'movie' | 'show'
         const lastEp = details.last_episode_to_air;
 
         if (!lastEp) {
-            initialStatus = 'show_new';
-            movedToLibrary = false;
+            initialStatus = currentStatus || 'show_new';
+            movedToLibrary = !!currentStatus;
         } else {
             if (!currentStatus) {
                 const status = details.status;

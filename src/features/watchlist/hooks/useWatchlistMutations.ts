@@ -290,7 +290,7 @@ export function useWatchlistMutations() {
     const refreshMetadata = useMutation({
         mutationFn: async ({ tmdbId, type, overrideMetadata }: { tmdbId: number; type: 'movie' | 'show'; overrideMetadata?: TMDBMedia }) => {
             const list = getList();
-            const item = list.find(i => i.tmdb_id === tmdbId && i.type === 'show');
+            const item = list.find(i => i.tmdb_id === tmdbId && i.type === type);
             if (!item) return;
 
             const { initialStatus, finalMetadata } = await getEnrichedMetadata(tmdbId, type, region, overrideMetadata || item.metadata, item.status);
