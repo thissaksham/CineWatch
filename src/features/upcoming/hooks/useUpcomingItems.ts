@@ -33,13 +33,13 @@ export const getDaysUntil = (dateStr: string) => {
 export const processUpcomingItem = (item: WatchlistItem, today: Date, region: string): UpcomingItem | null => {
     const meta = (item.metadata || {}) as TMDBMedia;
 
-    // Exclude: watched, unwatched, show_finished, show_watched, show_dropped
-    const excludedStatuses = [
-        'movie_watched', 'movie_unwatched', 'movie_dropped',
-        'show_finished', 'show_dropped'
+    // Include only items that should appear in upcoming (more robust than exclusion list)
+    const upcomingStatuses = [
+        'movie_on_ott', 'movie_coming_soon',
+        'show_new', 'show_ongoing', 'show_returning', 'show_watching', 'show_watched'
     ];
 
-    if (excludedStatuses.includes(item.status)) {
+    if (!upcomingStatuses.includes(item.status)) {
         return null;
     }
 

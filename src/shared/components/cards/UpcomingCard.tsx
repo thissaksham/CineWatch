@@ -210,6 +210,19 @@ export const UpcomingCard = ({
         const isReleasedToday = nextDateObj && nextDateObj.toDateString() === new Date().toDateString();
         const isReleasedPast = nextDateObj && nextDateObj < getTodayValues();
 
+        // Check if this is a premiered unwatched show (needs user action)
+        const watchlistItem = watchlist.find(i => i.tmdb_id === media.id && i.type === 'show');
+        const isUnwatchedAndPremiere = watchlistItem &&
+            (!watchlistItem.last_watched_season || watchlistItem.last_watched_season === 0) &&
+            (!watchlistItem.progress || watchlistItem.progress === 0) &&
+            isReleasedPast &&
+            seasonNumber === 1 && episodeNumber === 1;
+
+        // If show premiered but not watched yet, treat like stale data (needs action)
+        if (isUnwatchedAndPremiere) {
+            isStaleData = true;
+        }
+
         // If stale data, always show "Aired" label
         if (isStaleData) {
             contextLabel = `Aired (S${seasonNumber}E${episodeNumber})`;
