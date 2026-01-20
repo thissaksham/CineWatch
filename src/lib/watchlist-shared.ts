@@ -24,7 +24,8 @@ export const isSeasonOngoing = (metadata: TMDBMedia, seasonNum: number): boolean
         metadata.status !== 'Canceled';
 };
 
-export const determineShowStatus = (metadata: TMDBMedia, lastWatchedSeason: number, progress: number = 0): WatchStatus => {
+export const determineShowStatus = (metadata: TMDBMedia, lastWatchedSeason: number, progress: number = 0, currentStatus?: WatchStatus): WatchStatus => {
+    if (currentStatus === 'show_dropped') return 'show_dropped';
     if (lastWatchedSeason === 0 && progress > 0) return 'show_watching';
     const seasons = metadata.seasons || [];
     const today = getTodayValues();

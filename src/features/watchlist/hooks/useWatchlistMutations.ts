@@ -55,7 +55,15 @@ export function useWatchlistMutations() {
 
     // --- RECALCULATE STATUS LOGIC ---
     const recalculateShowStatus = async (tmdbId: number, lastWatchedSeason: number, currentMeta: TMDBMedia | undefined, progress: number = 0) => {
-        const newStatus = determineShowStatus(currentMeta as TMDBMedia, lastWatchedSeason, progress);
+        const list = getList();
+        const item = list.find(i => i.tmdb_id === tmdbId && i.type === 'show');
+        const currentStatus = item?.status;
+
+        const newStatus = determineShowStatus(currentMeta as TMDBMedia, lastWatchedSeason, progress, currentStatus);
+        
+        // Optimization: Don't mutate if status hasn't changed
+        if (newStatus === currentStatus) return;
+
         await mutateItem(tmdbId, 'show', { status: newStatus }, (item) => ({ ...item, status: newStatus }));
     };
 

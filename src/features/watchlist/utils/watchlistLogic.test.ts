@@ -64,6 +64,18 @@ describe('determineShowStatus', () => {
             expect(result).toBe('show_new');
         });
     });
+    
+    describe('Dropped Status', () => {
+        it('should return show_dropped if current status is show_dropped', () => {
+            const result = determineShowStatus({} as TMDBMedia, 1, 0, 'show_dropped');
+            expect(result).toBe('show_dropped');
+        });
+
+        it('should return show_dropped even if active progress exists', () => {
+            const result = determineShowStatus({} as TMDBMedia, 1, 5, 'show_dropped');
+            expect(result).toBe('show_dropped');
+        });
+    });
 
     describe('Started Watching', () => {
         const standardSeasons = [
