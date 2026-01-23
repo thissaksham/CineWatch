@@ -112,7 +112,7 @@ export default async function handler(request: any, response: any) {
                 // Calculate new status
                 let newStatus = item.status as WatchStatus;
                 if (item.type === 'show') {
-                    newStatus = determineShowStatus(details as TMDBMedia, item.last_watched_season || 0, item.progress || 0);
+                    newStatus = determineShowStatus(details as TMDBMedia, item.last_watched_season || 0, item.progress || 0, item.status as WatchStatus);
                 } else {
                     // Movie logic - check providers, digital dates, and global availability
                     const providers = details['watch/providers']?.results?.[region];
