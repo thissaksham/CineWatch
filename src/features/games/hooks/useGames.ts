@@ -64,6 +64,7 @@ function transformRAWGGame(rawg: any): Game {
         status: 'backlog', // Default for new found games
         release_date: rawg.released ? rawg.released.substring(0, 4) : 'TBA',
         rating: rawg.rating ? rawg.rating * 20 : 0, // RAWG is 0-5, converting to 0-100 scale
+        hours_played: rawg.playtime,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         genres: rawg.genres?.map((g: any) => g.name),
         // eslint-disable-next-line @typescript-eslint/no-explicit-any

@@ -529,6 +529,13 @@ h6,
     border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
+.pill-playtime {
+    background-color: rgba(20, 20, 20, 0.9);
+    color: #2dd4bf;
+    /* Teal-400 */
+    border: 1px solid rgba(45, 212, 191, 0.3);
+}
+
 .pill-duration {
     background-color: rgba(20, 20, 20, 0.9);
     color: #f3f4f6;

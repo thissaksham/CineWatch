@@ -127,7 +127,7 @@ export const GamesPage = () => {
             }
 
             // Find related games within the VISIBLE set only
-            const relatedGames = sortedGames.filter(otherGame => {
+            const relatedGames = initialSortedGames.filter(otherGame => {
                 if (otherGame.id === game.id) return true;
                 if (processedGameIds.has(otherGame.id)) return false;
 

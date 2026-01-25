@@ -1,5 +1,5 @@
 import React from 'react';
-import { Plus, Check, Star } from 'lucide-react';
+import { Plus, Check, Star, Clock } from 'lucide-react';
 import type { Game } from '../../../types';
 
 interface GameDiscoveryCardProps {
@@ -18,6 +18,7 @@ export const GameDiscoveryCard: React.FC<GameDiscoveryCardProps> = ({
     // Format rating (0-100 to 0-10) similar to TMDB
     const rating = game.rating ? (game.rating / 10).toFixed(1) : null;
     const year = game.release_date ? game.release_date.substring(0, 4) : null;
+    const playtime = game.hours_played && game.hours_played > 0 ? `${game.hours_played}h` : null;
 
     return (
         <div className="discovery-card group">
@@ -41,6 +42,13 @@ export const GameDiscoveryCard: React.FC<GameDiscoveryCardProps> = ({
                     {year && (
                         <div className="media-pill pill-year">
                             <span>{year}</span>
+                        </div>
+                    )}
+
+                    {playtime && (
+                        <div className="media-pill pill-playtime">
+                            <Clock size={10} strokeWidth={2.5} />
+                            <span>{playtime}</span>
                         </div>
                     )}
                 </div>

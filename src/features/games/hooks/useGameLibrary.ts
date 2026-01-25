@@ -75,6 +75,7 @@ export const useGameLibrary = () => {
                 release_date: game.release_date,
                 genres: game.genres,
                 platform: game.platform,
+                hours_played: game.hours_played,
                 franchise_data: franchiseData
             };
             
