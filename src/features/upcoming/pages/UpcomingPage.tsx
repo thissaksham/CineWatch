@@ -53,12 +53,20 @@ export const UpcomingPage = () => {
                 if (diff < twelveHours) return false;
             }
             if (item.type === 'show') {
-                if (['show_returning', 'show_watching', 'show_ongoing'].includes(item.status)) {
-                    const nextEp = (item.metadata as TMDBMedia)?.next_episode_to_air;
-                    if (nextEp && nextEp.air_date) {
-                        const epDate = new Date(nextEp.air_date);
-                        // If date is in past (yesterday/older), it's stale. Needs refresh to get NEXT ONE.
-                        if (epDate < today) return true;
+                if (['show_returning', 'show_watching', 'show_ongoing', 'show_watched'].includes(item.status)) {
+                    const meta = (item.metadata as TMDBMedia) || {};
+                    const nextEp = meta.next_episode_to_air;
+                    const tmdbStatus = meta.status || meta.tmdb_status;
+
+                    // If it's a "live" show (not ended/canceled), it's a candidate for refresh
+                    if (tmdbStatus !== 'Ended' && tmdbStatus !== 'Canceled') {
+                        if (!nextEp) return true; // No next ep known yet? Refresh to check!
+
+                        if (nextEp.air_date) {
+                            const epDate = new Date(nextEp.air_date);
+                            // If date is in past (yesterday/older), it's stale. Needs refresh to get NEXT ONE.
+                            if (epDate < today) return true;
+                        }
                     }
                 }
             }
