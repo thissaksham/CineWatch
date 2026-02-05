@@ -68,9 +68,15 @@ export const processUpcomingItem = (item: WatchlistItem, today: Date, region: st
             return false;
         })();
         
-        // If a show is marked as watched (caught up) or watching, allow through even without next episode
-        // BUT only if the show is actively airing (to avoid pulling in all old watched shows)
-        if (['show_watched', 'show_watching'].includes(item.status)) {
+        // If a show is marked as watched (caught up), ONLY show if there is a next episode scheduled.
+        // We don't want to clutter Upcoming with everything we've already finished.
+        if (item.status === 'show_watched') {
+            if (!nextDate) return null;
+        }
+
+        // For shows in 'show_watching' status, allow through if actively airing
+        // (to keep the "Latest Episode" visible while the season is ongoing).
+        if (item.status === 'show_watching') {
             if (!nextDate) {
                 // Only keep if has progress AND actively airing
                 if (!hasProgress || !isActivelyAiring) return null;

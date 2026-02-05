@@ -11,17 +11,41 @@ export const isSeasonOngoing = (metadata: TMDBMedia, seasonNum: number): boolean
     const nextEp = metadata.next_episode_to_air;
     const lastEp = metadata.last_episode_to_air;
 
-    // If there's a future episode scheduled for this season, it's definitely ongoing.
+    // 1. If there's a future episode scheduled for THIS season, it's definitely ongoing.
     if (nextEp && nextEp.season_number === seasonNum) {
         return true;
     }
 
-    // If this was the last season to air an episode, and it's not a finale,
-    // and the show is still active, we assume it's ongoing (more episodes expected).
-    return lastEp?.season_number === seasonNum &&
-        lastEp?.episode_type !== 'finale' &&
-        metadata.status !== 'Ended' &&
-        metadata.status !== 'Canceled';
+    // 5. The "AND" logic for daily soaps/unreliable counts:
+    // A season is only considered finished by count if it also has an official signal (Ended/Canceled status OR finale tag)
+    // OR if it's been long enough since the last air date.
+    const currentSeason = metadata.seasons?.find(s => s.season_number === seasonNum);
+    const countReached = !!(currentSeason?.episode_count && lastEp?.season_number === seasonNum && lastEp.episode_number >= currentSeason.episode_count);
+    const isOfficialEnd = metadata.status === 'Ended' || metadata.status === 'Canceled' || lastEp?.episode_type === 'finale';
+
+    if (countReached) {
+        // If count is reached, we still wait for an official signal OR a 14-day silence
+        const lastAirDate = parseDateLocal(lastEp?.air_date);
+        const fourteenDaysAgo = new Date();
+        fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
+        const isLongAgo = !!(lastAirDate && lastAirDate < fourteenDaysAgo);
+
+        if (isOfficialEnd || isLongAgo) {
+            if (!nextEp || nextEp.season_number !== seasonNum) {
+                return false;
+            }
+        }
+    }
+
+    // 6. Absolute check: If the show is officially Ended/Canceled AND we are on the latest season, it's not ongoing.
+    if (isOfficialEnd && lastEp?.season_number === seasonNum) {
+        if (!nextEp || nextEp.season_number !== seasonNum) {
+            return false;
+        }
+    }
+
+    // Fallback: If it's the latest season of an active show and no definitive end is known yet.
+    return lastEp?.season_number === seasonNum;
 };
 
 export const determineShowStatus = (metadata: TMDBMedia, lastWatchedSeason: number, progress: number = 0, currentStatus?: WatchStatus): WatchStatus => {
