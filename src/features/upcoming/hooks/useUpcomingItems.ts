@@ -125,14 +125,15 @@ export const processUpcomingItem = (item: WatchlistItem, today: Date, region: st
         if (item.status === 'movie_on_ott' || item.status === 'movie_coming_soon') {
             category = item.status === 'movie_on_ott' ? 'ott' : 'theatrical';
 
+            const manualDate = parseDateLocal(meta.manual_release_date);
+            const ottName = meta.manual_ott_name || meta.digital_release_note;
+
             if (category === 'ott') {
-                const manualDate = parseDateLocal(meta.manual_release_date);
                 if (dDate) {
                     targetDate = dDate;
-                    seasonInfo = (targetDate > today) ? 'Coming to OTT' : 'Streaming Now';
+                    seasonInfo = (targetDate > today) ? (ottName ? `Coming to ${ottName}` : 'Coming to OTT') : (ottName ? `Streaming on ${ottName}` : 'Streaming Now');
                 } else if (manualDate) {
                     targetDate = manualDate;
-                    const ottName = meta.manual_ott_name || meta.digital_release_note;
                     seasonInfo = ottName ? `Coming to ${ottName}` : 'Coming to OTT';
                 } else {
                     targetDate = rDate || tDate;

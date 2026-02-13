@@ -5,7 +5,13 @@ import { usePreferences } from '../../../context/PreferencesContext';
 import { formatDisplayDate, getTodayValues, isReleased, parseDate, parseDateLocal } from '../../../lib/dateUtils';
 
 interface UpcomingCardProps {
-    media: TMDBMedia;
+    media: TMDBMedia & {
+        date?: string;
+        countdown?: number;
+        tabCategory?: string;
+        seasonInfo?: string;
+        tmdbMediaType?: 'movie' | 'tv' | 'show';
+    };
     onRemove: (media: TMDBMedia) => void;
     onMarkWatched: (media: TMDBMedia) => void;
     onSetDate: (media: TMDBMedia) => void;
@@ -240,11 +246,9 @@ export const UpcomingCard = ({
             contextLabel = isReleasedPast ? `Aired (S${seasonNumber}E${episodeNumber})` : (isReleasedToday ? `Airs Today (S${seasonNumber}E${episodeNumber})` : `Next Episode (S${seasonNumber}E${episodeNumber})`);
         }
     } else if (isMovieOTT) {
-        const manualDate = media.manual_release_date ? media.manual_release_date : null;
-
-        let dateToUse = media.digital_release_date;
-        if (!dateToUse && manualDate) dateToUse = manualDate;
-        if (!dateToUse) dateToUse = media.release_date;
+        // Fix: Leverage processed date and info from useUpcomingItems hook
+        // but maintain fallback for robustness
+        const dateToUse = media.date || media.digital_release_date || media.release_date;
 
         formattedDate = getFormattedDate(dateToUse);
 
@@ -253,9 +257,11 @@ export const UpcomingCard = ({
             providers?.flatrate?.[0]?.provider_name ||
             providers?.ads?.[0]?.provider_name ||
             providers?.free?.[0]?.provider_name || 'OTT';
-        contextLabel = 'New Movie';
+
+        // Use the descriptive label from hook if available (e.g. "Coming to JioHotstar")
+        contextLabel = media.seasonInfo || 'New Movie';
     } else if (isMovieComingSoon) {
-        const dateStr = media.theatrical_release_date || media.release_date;
+        const dateStr = media.date || media.theatrical_release_date || media.release_date;
         formattedDate = getFormattedDate(dateStr);
 
         if (media.manual_date_override && media.manual_ott_name) {
@@ -265,7 +271,7 @@ export const UpcomingCard = ({
         const isInTheatres = isReleased(dateStr);
         label = '';
         labelColor = '';
-        contextLabel = isInTheatres ? '' : 'Coming Soon';
+        contextLabel = media.seasonInfo || (isInTheatres ? '' : 'Coming Soon');
     }
 
     if (!isTV && !isMovieOTT && !isMovieComingSoon) return null;

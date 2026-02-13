@@ -207,8 +207,8 @@ export const getEnrichedMetadata = async (tmdbId: number, type: 'movie' | 'show'
         const hasFutureIndianDigitalDate = indianDigDateObj && indianDigDateObj > today;
         const hasManualOverride = existingMetadata?.manual_date_override;
 
-        const isReleased = !releaseDateObj || releaseDateObj <= today;
-        const hasValidDigitalTransition = currentStatus === 'movie_coming_soon' && isReleased && !!indianDigDateObj;
+        const isTheatricallyReleased = !releaseDateObj || releaseDateObj <= today;
+        const hasValidDigitalTransition = currentStatus === 'movie_coming_soon' && isTheatricallyReleased && !!indianDigDateObj;
 
         let isAvailableGlobally = false;
         if (releaseDateObj) {
@@ -226,59 +226,43 @@ export const getEnrichedMetadata = async (tmdbId: number, type: 'movie' | 'show'
             }
         }
 
-        if (hasProvidersIN && (!releaseDateObj || releaseDateObj <= today)) {
-            if (!currentStatus) {
-                movedToLibrary = true;
-                initialStatus = 'movie_unwatched';
-            } else if (currentStatus === 'movie_coming_soon') {
-                movedToLibrary = false;
-                initialStatus = 'movie_on_ott';
-            } else {
-                movedToLibrary = true;
-                initialStatus = currentStatus === 'movie_watched' ? 'movie_watched' : 'movie_unwatched';
-            }
-        } else if (hasProvidersIN || hasFutureIndianDigitalDate || hasValidDigitalTransition || hasManualOverride) {
-            if (!currentStatus || currentStatus === 'movie_coming_soon' || hasManualOverride || hasProvidersIN) {
-                movedToLibrary = false;
-                initialStatus = 'movie_on_ott';
-            } else {
-                movedToLibrary = true;
-                initialStatus = 'movie_unwatched';
-            }
-        } else if (isAvailableGlobally) {
-            if (!currentStatus) {
-                movedToLibrary = true;
-                initialStatus = 'movie_unwatched';
-            } else if (currentStatus === 'movie_coming_soon') {
-                movedToLibrary = false;
-                initialStatus = 'movie_on_ott';
-            } else {
-                movedToLibrary = true;
-                initialStatus = 'movie_unwatched';
-            }
-        } else if (releaseDateObj && releaseDateObj < new Date(new Date().setFullYear(new Date().getFullYear() - 1))) {
-            if (!currentStatus) {
-                movedToLibrary = true;
-                initialStatus = 'movie_unwatched';
-            } else if (currentStatus === 'movie_coming_soon') {
-                movedToLibrary = false;
-                initialStatus = 'movie_on_ott';
-            } else {
-                movedToLibrary = true;
-                initialStatus = 'movie_unwatched';
-            }
-        } else {
-            movedToLibrary = false;
-            initialStatus = 'movie_coming_soon';
-        }
-
-        if (currentStatus === 'movie_on_ott' && initialStatus === 'movie_unwatched') {
-            initialStatus = 'movie_on_ott';
-            movedToLibrary = false;
-        }
+        // Logic Refinement: Prioritize Theatrical Tracking
+        // 1. If already watched, stay watched.
         if (currentStatus === 'movie_watched') {
             initialStatus = 'movie_watched';
             movedToLibrary = true;
+        } 
+        // 2. If already in Library (not watched, but moved), stay there.
+        else if (currentStatus === 'movie_unwatched') {
+            initialStatus = 'movie_unwatched';
+            movedToLibrary = true;
+        }
+        // 3. If NOT theatrically released yet -> Coming Soon (regardless of OTT dates)
+        else if (!isTheatricallyReleased) {
+            initialStatus = 'movie_coming_soon';
+            movedToLibrary = false;
+        }
+        // 4. Theatrically released -> Check for OTT/Digital
+        else if (hasProvidersIN || hasFutureIndianDigitalDate || hasValidDigitalTransition || hasManualOverride || isAvailableGlobally) {
+            // Already released in theaters, and we HAVE digital info/providers
+            initialStatus = 'movie_on_ott';
+            movedToLibrary = false;
+        }
+        // 5. Released in theaters > 1 year ago -> Library (Fallback)
+        else if (releaseDateObj && releaseDateObj < new Date(new Date().setFullYear(new Date().getFullYear() - 1))) {
+            initialStatus = 'movie_unwatched';
+            movedToLibrary = true;
+        }
+        // 6. Default: If released but no OTT info found yet
+        else {
+            // If it was already on OTT, keep it there (don't regress to coming_soon)
+            if (currentStatus === 'movie_on_ott' || currentStatus === 'movie_coming_soon') {
+                initialStatus = 'movie_on_ott';
+                movedToLibrary = false;
+            } else {
+                initialStatus = 'movie_unwatched';
+                movedToLibrary = true;
+            }
         }
     } else {
         const lastEp = details.last_episode_to_air;
