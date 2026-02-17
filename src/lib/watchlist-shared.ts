@@ -207,7 +207,7 @@ export const getEnrichedMetadata = async (tmdbId: number, type: 'movie' | 'show'
         const hasFutureIndianDigitalDate = indianDigDateObj && indianDigDateObj > today;
         const hasManualOverride = existingMetadata?.manual_date_override;
 
-        const isTheatricallyReleased = !releaseDateObj || releaseDateObj <= today;
+        const isTheatricallyReleased = !!(releaseDateObj && releaseDateObj <= today);
         const hasValidDigitalTransition = currentStatus === 'movie_coming_soon' && isTheatricallyReleased && !!indianDigDateObj;
 
         let isAvailableGlobally = false;
@@ -226,6 +226,8 @@ export const getEnrichedMetadata = async (tmdbId: number, type: 'movie' | 'show'
             }
         }
 
+        const isUnreleasedStatus = ['In Production', 'Planned', 'Post Production'].includes(details.status || '');
+
         // Logic Refinement: Prioritize Theatrical Tracking
         // 1. If already watched, stay watched.
         if (currentStatus === 'movie_watched') {
@@ -237,26 +239,27 @@ export const getEnrichedMetadata = async (tmdbId: number, type: 'movie' | 'show'
             initialStatus = 'movie_unwatched';
             movedToLibrary = true;
         }
-        // 3. If NOT theatrically released yet -> Coming Soon (regardless of OTT dates)
-        else if (!isTheatricallyReleased) {
+        // 3. Unreleased movies -> Coming Soon
+        else if (isUnreleasedStatus || !isTheatricallyReleased) {
             initialStatus = 'movie_coming_soon';
             movedToLibrary = false;
         }
-        // 4. Theatrically released -> Check for OTT/Digital
+        // 4. Released in theaters > 1 year ago -> Library (Fallback)
+        // This is moved up to ensure old movies (like 7 Khoon Maaf) don't clutter OTT
+        else if (releaseDateObj && releaseDateObj < new Date(new Date().setFullYear(new Date().getFullYear() - 1))) {
+            initialStatus = 'movie_unwatched';
+            movedToLibrary = true;
+        }
+        // 5. Theatrically released -> Check for OTT/Digital
         else if (hasProvidersIN || hasFutureIndianDigitalDate || hasValidDigitalTransition || hasManualOverride || isAvailableGlobally) {
             // Already released in theaters, and we HAVE digital info/providers
             initialStatus = 'movie_on_ott';
             movedToLibrary = false;
         }
-        // 5. Released in theaters > 1 year ago -> Library (Fallback)
-        else if (releaseDateObj && releaseDateObj < new Date(new Date().setFullYear(new Date().getFullYear() - 1))) {
-            initialStatus = 'movie_unwatched';
-            movedToLibrary = true;
-        }
         // 6. Default: If released but no OTT info found yet
         else {
             // If it was already on OTT, keep it there (don't regress to coming_soon)
-            if (currentStatus === 'movie_on_ott' || currentStatus === 'movie_coming_soon') {
+            if (currentStatus === 'movie_on_ott') {
                 initialStatus = 'movie_on_ott';
                 movedToLibrary = false;
             } else {
