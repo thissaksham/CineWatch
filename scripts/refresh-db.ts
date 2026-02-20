@@ -238,9 +238,9 @@ async function runRefresh() {
         // Filter candidates: Include all shows except truly ended ones
         // For movies: only coming_soon and on_ott need updates
         const candidates = allItems.filter(item => {
-            // Movies: Only refresh if coming_soon or on_ott
+            // Movies: Only refresh if coming_soon, on_ott, or status is reset (NULL)
             if (item.type === 'movie') {
-                return ['movie_coming_soon', 'movie_on_ott'].includes(item.status);
+                return !item.status || ['movie_coming_soon', 'movie_on_ott'].includes(item.status);
             }
             
             // Shows: Refresh ALL unless TMDB status is "Ended" or "Canceled"
@@ -408,8 +408,20 @@ async function runRefresh() {
                             }
                         }
                         
-                        // Apply "Gatekeeper Rule" from MOVIE_LOGIC.md - only upgrade to movie_on_ott from movie_coming_soon
-                        if (item.status === 'movie_coming_soon') {
+                        // Apply Categorization Logic from MOVIE_LOGIC.md
+                        if (!item.status) {
+                            // 1. Initial categorization for reset/new movies
+                            if (hasProviders) {
+                                newStatus = 'movie_unwatched';
+                            } else if (hasFutureDigitalDate) {
+                                newStatus = 'movie_on_ott';
+                            } else if (isOldOrGloballyAvailable) {
+                                newStatus = 'movie_unwatched';
+                            } else {
+                                newStatus = 'movie_coming_soon';
+                            }
+                        } else if (item.status === 'movie_coming_soon') {
+                            // 2. Refresh Logic Gatekeeper: only upgrade to on_ott from coming_soon
                             if (hasProviders || hasFutureDigitalDate || hasValidDigitalTransition || isOldOrGloballyAvailable) {
                                 newStatus = 'movie_on_ott';
                             }
