@@ -234,32 +234,28 @@ export const getEnrichedMetadata = async (tmdbId: number, type: 'movie' | 'show'
             initialStatus = 'movie_watched';
             movedToLibrary = true;
         } 
-        // 2. If already in Library (not watched, but moved), stay there.
-        else if (currentStatus === 'movie_unwatched') {
-            initialStatus = 'movie_unwatched';
-            movedToLibrary = true;
-        }
-        // 3. Unreleased movies -> Coming Soon
+        // 2. Unreleased movies -> Coming Soon
         else if (isUnreleasedStatus || !isTheatricallyReleased) {
             initialStatus = 'movie_coming_soon';
             movedToLibrary = false;
         }
-        // 4. Released in theaters > 1 year ago -> Library (Fallback)
-        // This is moved up to ensure old movies (like 7 Khoon Maaf) don't clutter OTT
+        // 3. Released in theaters > 1 year ago -> Library (Fallback)
+        // This is moved up to ensure old movies don't clutter OTT
         else if (releaseDateObj && releaseDateObj < new Date(new Date().setFullYear(new Date().getFullYear() - 1))) {
             initialStatus = 'movie_unwatched';
             movedToLibrary = true;
         }
-        // 5. Theatrically released -> Check for OTT/Digital
+        // 4. Theatrically released -> Check for OTT/Digital
         else if (hasProvidersIN || hasFutureIndianDigitalDate || hasValidDigitalTransition || hasManualOverride || isAvailableGlobally) {
             // Already released in theaters, and we HAVE digital info/providers
             initialStatus = 'movie_on_ott';
             movedToLibrary = false;
         }
-        // 6. Default: If released but no OTT info found yet
+        // 5. Default: If recently released but no OTT info found yet
         else {
-            // If it was already on OTT, keep it there (don't regress to coming_soon)
-            if (currentStatus === 'movie_on_ott') {
+            // RELAXED GATEKEEPER: If it was in coming_soon or on_ott, keep it in on_ott (Date Pending)
+            // even if it's already in the Library (to allow recovery).
+            if (currentStatus === 'movie_coming_soon' || currentStatus === 'movie_on_ott' || currentStatus === 'movie_unwatched') {
                 initialStatus = 'movie_on_ott';
                 movedToLibrary = false;
             } else {
