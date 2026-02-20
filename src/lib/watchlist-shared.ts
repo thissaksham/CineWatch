@@ -21,7 +21,7 @@ export const isSeasonOngoing = (metadata: TMDBMedia, seasonNum: number): boolean
     // (Episode count reached AND (Official end signal OR 14-days inactivity))
     const currentSeason = metadata.seasons?.find(s => s.season_number === seasonNum);
     const countReached = !!(currentSeason?.episode_count && lastEp?.season_number === seasonNum && lastEp.episode_number >= currentSeason.episode_count);
-    const isOfficialEnd = metadata.status === 'Ended' || metadata.status === 'Canceled' || lastEp?.episode_type === 'finale';
+    const isOfficialEnd = metadata.status === 'Ended' || metadata.status === 'Canceled' || metadata.status === 'Miniseries' || (metadata as any).type === 'Miniseries';
 
     if (countReached) {
         const lastAirDate = parseDateLocal(lastEp?.air_date);
@@ -88,10 +88,8 @@ export const pruneMetadata = (meta: TMDBMedia | undefined, region: string): TMDB
         next_episode_to_air, last_episode_to_air, seasons, external_ids,
         genres, number_of_episodes, number_of_seasons, episode_run_time, tvmaze_runtime,
         digital_release_date, digital_release_note, theatrical_release_date, moved_to_library,
-        manual_date_override, manual_ott_name, dismissed_from_upcoming, last_updated_at,
-        // User progress fields to ensure stable sync
-        last_watched_season, progress
-    } = meta as any;
+        manual_date_override, manual_ott_name, dismissed_from_upcoming, last_updated_at
+    } = meta;
     return {
         id,
         title: meta.title || meta.name,
@@ -105,7 +103,6 @@ export const pruneMetadata = (meta: TMDBMedia | undefined, region: string): TMDB
         episode_run_time, tvmaze_runtime,
         digital_release_date, digital_release_note, theatrical_release_date, moved_to_library,
         manual_date_override, manual_ott_name, dismissed_from_upcoming, last_updated_at,
-        last_watched_season, progress,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         'watch/providers': leanProviders as { results: Record<string, any> },
         videos: leanVideos
@@ -231,57 +228,69 @@ export const getEnrichedMetadata = async (tmdbId: number, type: 'movie' | 'show'
 
         const isUnreleasedStatus = ['In Production', 'Planned', 'Post Production'].includes(details.status || '');
 
-        // --- STRICT GATEKEEPER LOGIC ---
-        // 1. Priority always to Library/Watched for stable items
+        // Logic Refinement: Prioritize Theatrical Tracking
+        // 1. If already watched, stay watched.
         if (currentStatus === 'movie_watched') {
             initialStatus = 'movie_watched';
             movedToLibrary = true;
         } 
-        else if (currentStatus === 'movie_unwatched' || existingMetadata?.moved_to_library) {
-            // Rule: Items already in Library stay there.
+        // 2. If already in Library (not watched, but moved), stay there.
+        else if (currentStatus === 'movie_unwatched') {
             initialStatus = 'movie_unwatched';
             movedToLibrary = true;
         }
-        // 2. Refresh Logic for Upcoming Items (those not yet in Library)
+        // 3. Unreleased movies -> Coming Soon
+        else if (isUnreleasedStatus || !isTheatricallyReleased) {
+            initialStatus = 'movie_coming_soon';
+            movedToLibrary = false;
+        }
+        // 4. Released in theaters > 1 year ago -> Library (Fallback)
+        // This is moved up to ensure old movies (like 7 Khoon Maaf) don't clutter OTT
+        else if (releaseDateObj && releaseDateObj < new Date(new Date().setFullYear(new Date().getFullYear() - 1))) {
+            initialStatus = 'movie_unwatched';
+            movedToLibrary = true;
+        }
+        // 5. Theatrically released -> Check for OTT/Digital
+        else if (hasProvidersIN || hasFutureIndianDigitalDate || hasValidDigitalTransition || hasManualOverride || isAvailableGlobally) {
+            // Already released in theaters, and we HAVE digital info/providers
+            initialStatus = 'movie_on_ott';
+            movedToLibrary = false;
+        }
+        // 6. Default: If released but no OTT info found yet
         else {
-            if (isUnreleasedStatus || !isTheatricallyReleased) {
-                initialStatus = 'movie_coming_soon';
+            // If it was already on OTT, keep it there (don't regress to coming_soon)
+            if (currentStatus === 'movie_on_ott') {
+                initialStatus = 'movie_on_ott';
                 movedToLibrary = false;
-            }
-            else if (releaseDateObj && releaseDateObj < new Date(new Date().setFullYear(new Date().getFullYear() - 1))) {
-                // If Item becomes "Old" (> 1 year), move it to Library
+            } else {
                 initialStatus = 'movie_unwatched';
                 movedToLibrary = true;
             }
-            else {
-                // Recently released theatrically (< 1 year)
-                if (hasProvidersIN || hasFutureIndianDigitalDate || hasValidDigitalTransition || hasManualOverride || isAvailableGlobally) {
-                    initialStatus = 'movie_on_ott';
-                    movedToLibrary = false;
-                } else {
-                    // Released theatrically but no digital info found yet
-                    // If it was already in Upcoming, keep it there (as Date Pending)
-                    if (currentStatus === 'movie_on_ott' || currentStatus === 'movie_coming_soon') {
-                        initialStatus = 'movie_on_ott';
-                        movedToLibrary = false;
-                    } else {
-                        // Default for new items: If released but no OTT info, add to Library
-                        initialStatus = 'movie_unwatched';
-                        movedToLibrary = true;
-                    }
-                }
-            }
         }
     } else {
-        // --- TV SHOW STATUS RE-EVALUATION ---
-        // Aligns "Sync Library" with TV status rules
-        const lastWatched = (existingMetadata as any)?.last_watched_season || 0;
-        const progress = (existingMetadata as any)?.progress || 0;
-        
-        initialStatus = determineShowStatus(details, lastWatched, progress, currentStatus);
-        
-        // Items only start out of the library if they are 'show_new'
-        movedToLibrary = initialStatus !== 'show_new';
+        const lastEp = details.last_episode_to_air;
+
+        if (!lastEp) {
+            initialStatus = currentStatus || 'show_new';
+            movedToLibrary = !!currentStatus;
+        } else {
+            if (!currentStatus) {
+                const status = details.status;
+                const showType = details.type as string;
+                const isFinished = (status === 'Ended' || status === 'Canceled' || status === 'Miniseries' || showType === 'Miniseries') && status !== 'Returning Series';
+                const isNew = status === 'Planned' || status === 'In Production' || status === 'Pilot' || status === 'Rumored';
+
+                if (isNew) initialStatus = 'show_new';
+                else if (isFinished) initialStatus = 'show_finished';
+                else initialStatus = 'show_ongoing';
+
+                if (initialStatus === 'show_new') movedToLibrary = false;
+                else movedToLibrary = true;
+            } else {
+                initialStatus = currentStatus;
+                movedToLibrary = true;
+            }
+        }
     }
 
     const oldSeasonsCount = existingMetadata?.number_of_seasons || 0;
