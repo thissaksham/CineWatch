@@ -117,5 +117,25 @@ describe('determineShowStatus', () => {
             const result = determineShowStatus({ seasons: seasonsWithFuture } as Partial<TMDBMedia> as TMDBMedia, 2);
             expect(result).toBe('show_returning');
         });
+        it('should return show_watched immediately if last episode is a finale (manual check)', () => {
+            const seasons = [mockSeason(1, PAST_DATE)];
+            const lastEp = { 
+                runtime: 30, 
+                air_date: PAST_DATE, 
+                season_number: 1, 
+                episode_number: 10,
+                episode_type: 'finale' 
+            };
+            // Mocking the date to be very recent (only 1 day after PAST_DATE, so < 14 days)
+            vi.setSystemTime(new Date(PAST_DATE).getTime() + 24 * 60 * 60 * 1000);
+            
+            const result = determineShowStatus({ 
+                seasons, 
+                last_episode_to_air: lastEp,
+                status: 'Returning Series' // Still returning, but this season is done
+            } as Partial<TMDBMedia> as TMDBMedia, 1);
+            
+            expect(result).toBe('show_watched');
+        });
     });
 });

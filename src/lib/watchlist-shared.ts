@@ -21,7 +21,7 @@ export const isSeasonOngoing = (metadata: TMDBMedia, seasonNum: number): boolean
     // (Episode count reached AND (Official end signal OR 14-days inactivity))
     const currentSeason = metadata.seasons?.find(s => s.season_number === seasonNum);
     const countReached = !!(currentSeason?.episode_count && lastEp?.season_number === seasonNum && lastEp.episode_number >= currentSeason.episode_count);
-    const isOfficialEnd = metadata.status === 'Ended' || metadata.status === 'Canceled' || metadata.status === 'Miniseries' || (metadata as any).type === 'Miniseries';
+    const isOfficialEnd = metadata.status === 'Ended' || metadata.status === 'Canceled' || metadata.status === 'Miniseries' || (metadata as any).type === 'Miniseries' || lastEp?.episode_type === 'finale';
 
     if (countReached) {
         const lastAirDate = parseDateLocal(lastEp?.air_date);
