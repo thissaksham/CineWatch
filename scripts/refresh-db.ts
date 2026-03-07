@@ -340,6 +340,11 @@ async function runRefresh() {
                     const details = await detailsRes.json();
 
                     let newStatus = item.status as WatchStatus;
+                    // Declare date variables at this scope so they're accessible in the metadata merge
+                    let digitalDate: string | null = null;
+                    let digitalNote: string | null = null;
+                    let theatricalDate: string | null = null;
+
                     if (item.type === 'show') {
                         newStatus = determineShowStatus(details as TMDBMedia, item.last_watched_season || 0, item.progress || 0, item.status as WatchStatus);
                     } else {
@@ -364,15 +369,36 @@ async function runRefresh() {
                             }
                         }
 
-                        // Extract digital release date from release_dates
-                        let digitalDate: string | null = null;
+                        // Extract digital and theatrical release dates from release_dates
+                        // (Mirroring getEnrichedMetadata logic from watchlist-shared.ts)
                         if (details.release_dates?.results) {
                             const regionData = details.release_dates.results.find((r: any) => r.iso_3166_1 === region);
                             if (regionData?.release_dates) {
-                                // Priority: Digital (Type 4) -> Physical (Type 5)
+                                // Theatrical: Type 3 (Theatrical) -> Type 2 (Limited)
+                                const theatrical = regionData.release_dates.find((d: any) => d.type === 3) ||
+                                                  regionData.release_dates.find((d: any) => d.type === 2);
+                                theatricalDate = theatrical?.release_date || null;
+                                // Digital: Type 4 (Digital) -> Type 5 (Physical)
                                 const digital = regionData.release_dates.find((d: any) => d.type === 4) || 
                                               regionData.release_dates.find((d: any) => d.type === 5);
                                 digitalDate = digital?.release_date || null;
+                                digitalNote = digital?.note || null;
+                            }
+                            
+                            // Global theatrical fallback (same as getEnrichedMetadata)
+                            if (!theatricalDate) {
+                                let earliestDate: string | null = null;
+                                for (const res of details.release_dates.results) {
+                                    if (!res.release_dates || !Array.isArray(res.release_dates)) continue;
+                                    for (const d of res.release_dates) {
+                                        if ((d.type === 2 || d.type === 3 || d.type === 4) && d.release_date) {
+                                            if (!earliestDate || d.release_date < earliestDate) {
+                                                earliestDate = d.release_date;
+                                            }
+                                        }
+                                    }
+                                }
+                                if (earliestDate) theatricalDate = earliestDate;
                             }
                         }
                         
@@ -432,7 +458,30 @@ async function runRefresh() {
                         }
                     }
 
-                    const updatedMeta = { ...(item.metadata || {}), ...details, last_updated_at: Date.now() };
+                    // For shows: detect new season announcements to restore to Upcoming
+                    let dismissedFromUpcoming = item.metadata?.dismissed_from_upcoming;
+                    if (item.type === 'show' && dismissedFromUpcoming) {
+                        const oldSeasonsCount = item.metadata?.number_of_seasons || 0;
+                        const newSeasonsCount = details.number_of_seasons || 0;
+                        if (newSeasonsCount > oldSeasonsCount) {
+                            console.log(`[Auto-Restore] New season detected for ${item.title} (${oldSeasonsCount} -> ${newSeasonsCount}). Restoring to Upcoming.`);
+                            dismissedFromUpcoming = false;
+                        }
+                    }
+
+                    const updatedMeta = {
+                        ...(item.metadata || {}),
+                        ...details,
+                        last_updated_at: Date.now(),
+                        dismissed_from_upcoming: dismissedFromUpcoming,
+                        // For movies: store extracted app-specific date fields (mirroring getEnrichedMetadata)
+                        ...(item.type === 'movie' ? {
+                            digital_release_date: digitalDate || (item.metadata?.manual_date_override ? item.metadata?.digital_release_date : undefined),
+                            digital_release_note: digitalDate ? digitalNote : (item.metadata?.manual_date_override ? item.metadata?.digital_release_note : undefined),
+                            theatrical_release_date: theatricalDate || item.metadata?.theatrical_release_date,
+                            manual_date_override: digitalDate ? false : !!item.metadata?.manual_date_override,
+                        } : {})
+                    };
                     const pruned = pruneMetadata(updatedMeta, region);
 
                     const { error: updateError } = await supabase
