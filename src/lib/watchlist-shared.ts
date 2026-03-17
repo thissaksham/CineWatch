@@ -24,13 +24,20 @@ export const isSeasonOngoing = (metadata: TMDBMedia, seasonNum: number): boolean
     const isOfficialEnd = metadata.status === 'Ended' || metadata.status === 'Canceled' || metadata.status === 'Miniseries' || (metadata as any).type === 'Miniseries' || lastEp?.episode_type === 'finale';
 
     if (countReached) {
+        // If all episodes aired and no future episode is scheduled, the season is done.
+        // This handles post-finale episodes (e.g. masterclasses) where last_episode_to_air
+        // is not the finale episode itself.
+        if (!nextEp) {
+            return false;
+        }
+
         const lastAirDate = parseDateLocal(lastEp?.air_date);
         const fourteenDaysAgo = new Date();
         fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
         const isLongAgo = !!(lastAirDate && lastAirDate < fourteenDaysAgo);
 
         if (isOfficialEnd || isLongAgo) {
-            if (!nextEp || nextEp.season_number !== seasonNum) {
+            if (nextEp.season_number !== seasonNum) {
                 return false;
             }
         }
