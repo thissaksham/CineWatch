@@ -189,6 +189,7 @@ export interface TMDBMedia {
     moved_to_library?: boolean;
     dismissed_from_upcoming?: boolean;
     last_updated_at?: number;
+    has_aired_finale?: boolean;
     last_watched_season?: number; // Added
     progress?: number; // Added
     // UI Transient Properties
@@ -293,12 +294,11 @@ export const tmdb = {
     },
 
     getReleaseDates: async (id: number): Promise<{ results: { iso_3166_1: string; release_dates: { type: number; release_date: string; note?: string }[] }[] }> => {
-        // Release dates are global, but maybe we should filter? No, standard API returns all.
-        // We do not need region param here necessarily, unless we want to filter on server side.
-        // For now, keep it simple.
-        // Passing 'US' as default just to satisfy fetchTMDB signature if we change it.
-        // But simpler:
         return fetchTMDB(`/movie/${id}/release_dates`, {}, 'US');
+    },
+
+    getSeasonDetails: async (showId: number, seasonNumber: number, region: string = 'IN'): Promise<any> => {
+        return fetchTMDB(`/tv/${showId}/season/${seasonNumber}`, {}, region);
     }
 };
 

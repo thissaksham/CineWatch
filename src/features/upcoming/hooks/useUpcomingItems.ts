@@ -18,6 +18,8 @@ export interface UpcomingItem extends TMDBMedia {
     countdown?: number;
 }
 
+import { isSeasonOngoing } from '../../../lib/watchlist-shared';
+
 export const getDaysUntil = (dateStr: string) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -54,10 +56,13 @@ export const processUpcomingItem = (item: WatchlistItem, today: Date, region: st
         const hasProgress = !isUnwatched;
         
         // Check if show is actively airing (TMDB might just be slow to update)
-        // Criteria: Last episode aired within last 30 days
-        // We don't rely only on "Returning Series" status because old shows like Mirzapur keep that status for years
+        // Criteria: Last episode aired within last 30 days AND the season is still ongoing
         const isActivelyAiring = (() => {
             if (lastEp?.air_date) {
+                // If the season is definitively finished, it's not actively airing anymore.
+                if (!isSeasonOngoing(meta, lastEp.season_number)) {
+                    return false;
+                }
                 const lastEpDate = parseDateLocal(lastEp.air_date);
                 if (lastEpDate) {
                     const thirtyDaysAgo = new Date();

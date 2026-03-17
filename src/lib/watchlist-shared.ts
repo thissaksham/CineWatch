@@ -24,20 +24,13 @@ export const isSeasonOngoing = (metadata: TMDBMedia, seasonNum: number): boolean
     const isOfficialEnd = metadata.status === 'Ended' || metadata.status === 'Canceled' || metadata.status === 'Miniseries' || (metadata as any).type === 'Miniseries' || lastEp?.episode_type === 'finale';
 
     if (countReached) {
-        // If all episodes aired and no future episode is scheduled, the season is done.
-        // This handles post-finale episodes (e.g. masterclasses) where last_episode_to_air
-        // is not the finale episode itself.
-        if (!nextEp) {
-            return false;
-        }
-
         const lastAirDate = parseDateLocal(lastEp?.air_date);
         const fourteenDaysAgo = new Date();
         fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
         const isLongAgo = !!(lastAirDate && lastAirDate < fourteenDaysAgo);
 
-        if (isOfficialEnd || isLongAgo) {
-            if (nextEp.season_number !== seasonNum) {
+        if (isOfficialEnd || isLongAgo || metadata.has_aired_finale) {
+            if (!nextEp || nextEp.season_number !== seasonNum) {
                 return false;
             }
         }
@@ -124,6 +117,32 @@ export const getEnrichedMetadata = async (tmdbId: number, type: 'movie' | 'show'
         tmdb.getDetails(tmdbId, tmdbType, region),
         tmdbType === 'movie' ? tmdb.getReleaseDates(tmdbId) : Promise.resolve({ results: [] })
     ]);
+
+    let hasAiredFinale = false;
+    if (tmdbType === 'tv' && details.last_episode_to_air) {
+        const status = details.status;
+        const showType = details.type as string;
+        const isFinishedShow = (status === 'Ended' || status === 'Canceled' || status === 'Miniseries' || showType === 'Miniseries') && status !== 'Returning Series';
+        
+        if (!isFinishedShow) {
+            try {
+                const seasonData = await tmdb.getSeasonDetails(tmdbId, details.last_episode_to_air.season_number, region);
+                if (seasonData?.episodes) {
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    hasAiredFinale = seasonData.episodes.some((ep: any) => {
+                        if (ep.episode_type === 'finale' && ep.air_date) {
+                            const airDate = parseDateLocal(ep.air_date);
+                            return airDate && airDate <= today;
+                        }
+                        return false;
+                    });
+                }
+            } catch (e) {
+                console.warn("Failed to fetch season details for finale check", e);
+            }
+        }
+    }
 
     let theatricalDate: string | null = null;
     let indianDigitalDate: string | null = null;
@@ -320,7 +339,8 @@ export const getEnrichedMetadata = async (tmdbId: number, type: 'movie' | 'show'
         theatrical_release_date: theatricalDate || existingMetadata?.theatrical_release_date,
         manual_date_override: indianDigitalDate ? false : !!existingMetadata?.manual_date_override,
         moved_to_library: movedToLibrary,
-        dismissed_from_upcoming: isDismissed
+        dismissed_from_upcoming: isDismissed,
+        has_aired_finale: hasAiredFinale || existingMetadata?.has_aired_finale
     };
 
     return { initialStatus, finalMetadata, movedToLibrary };
