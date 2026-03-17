@@ -13,7 +13,6 @@ import VerifySuccess from '../pages/VerifySuccess';
 import { MoviesPage } from '../features/movies/pages/MoviesPage';
 import { ShowsPage } from '../features/shows/pages/ShowsPage';
 import { UpcomingPage } from '../features/upcoming/pages/UpcomingPage';
-import { GamesPage } from '../features/games/pages/GamesPage';
 
 // Components
 import { WelcomeSplash } from '../features/auth/components/WelcomeSplash';
@@ -87,9 +86,9 @@ export const AppRouter = () => {
           <Route path="upcoming" element={<Navigate to="/upcoming/onOTT" replace />} />
           <Route path="upcoming/:status" element={<UpcomingPage />} />
 
-          {/* Games Routes */}
+          {/* Games Routes (placeholder) */}
           <Route path="games" element={<Navigate to="/games/unplayed" replace />} />
-          <Route path="games/:status" element={<GamesPage />} />
+          <Route path="games/:status" element={<div />} />
         </Route>
 
         {/* 404 Catch-All */}

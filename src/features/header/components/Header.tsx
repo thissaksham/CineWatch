@@ -1,22 +1,18 @@
 import { useState, useRef, useEffect } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
-import { LogOut, Clapperboard, MonitorPlay, Gamepad2, Menu, X, Plus, Lock, Trash2, RotateCw } from 'lucide-react';
+import { LogOut, Clapperboard, MonitorPlay, Menu, X, Plus, Lock, Trash2, RotateCw } from 'lucide-react';
 import { useAuth } from '../../auth/context/AuthContext';
 import { useWatchlist } from '../../watchlist/context/WatchlistContext';
 import { SearchModal } from '../../search/components/SearchModal';
 import { MovieModal } from '../../movies/components/MovieModal';
 import { ShowModal } from '../../shows/components/ShowModal';
 import { ChangePasswordModal } from '../../auth/components/ChangePasswordModal';
-import { PlatformSelector } from '../../games/components/PlatformSelector';
-import { useGameLibrary } from '../../games/hooks/useGameLibrary';
 import { SyncOverlay } from '../../../shared/components/ui/SyncOverlay';
 import type { TMDBMedia } from '../../../lib/tmdb';
-import type { Game } from '../../../types';
 
 export const Header = () => {
     const { signOut, deleteAccount, user } = useAuth();
     const { refreshAllMetadata, loading } = useWatchlist();
-    const { addGame } = useGameLibrary();
     const navigate = useNavigate();
     const location = useLocation();
 
@@ -26,14 +22,12 @@ export const Header = () => {
     const getSearchType = (path: string) => {
         if (path.startsWith('/movies')) return 'movie';
         if (path.startsWith('/shows')) return 'tv';
-        if (path.startsWith('/games')) return 'game';
         return 'multi';
     };
 
     const initialSearchType = getSearchType(location.pathname);
 
     const [recentlyAddedMedia, setRecentlyAddedMedia] = useState<TMDBMedia | null>(null);
-    const [gameToSelectPlatform, setGameToSelectPlatform] = useState<Game | null>(null);
 
     // Dropdown State
     const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
@@ -75,15 +69,7 @@ export const Header = () => {
     const navItems = [
         { name: 'Movies', path: '/movies', icon: Clapperboard },
         { name: 'Shows', path: '/shows', icon: MonitorPlay },
-        { name: 'Games', path: '/games', icon: Gamepad2 },
     ];
-
-    const handlePlatformConfirm = (platforms: string[]) => {
-        if (!gameToSelectPlatform) return;
-        const gameWithPlatforms = { ...gameToSelectPlatform, platform: platforms };
-        addGame(gameWithPlatforms);
-        setGameToSelectPlatform(null);
-    };
 
     return (
         <>
@@ -236,16 +222,11 @@ export const Header = () => {
                 isOpen={isAddOpen}
                 onClose={() => setIsAddOpen(false)}
                 type={initialSearchType}
-                onSuccess={(media: TMDBMedia | Game) => {
-                    // Check if it's a Game (has rawg_id)
-                    if ('rawg_id' in media) {
-                        setGameToSelectPlatform(media as Game);
-                    } else {
-                        // Standard Media Logic
-                        const isTV = media.media_type === 'tv' || !!media.first_air_date;
-                        if (isTV) {
-                            setRecentlyAddedMedia(media);
-                        }
+                onSuccess={(media: TMDBMedia) => {
+                    // Standard Media Logic
+                    const isTV = media.media_type === 'tv' || !!media.first_air_date;
+                    if (isTV) {
+                        setRecentlyAddedMedia(media);
                     }
                 }}
             />
@@ -268,14 +249,6 @@ export const Header = () => {
 
             {/* Sync Overlay */}
             {isSyncing && <SyncOverlay />}
-
-            {/* Platform Selector */}
-            <PlatformSelector
-                isOpen={!!gameToSelectPlatform}
-                onClose={() => setGameToSelectPlatform(null)}
-                onConfirm={handlePlatformConfirm}
-                gameTitle={gameToSelectPlatform?.title || ''}
-            />
         </>
     );
 };

@@ -21,17 +21,7 @@ export const SHOW_STATUSES = {
   DROPPED: 'show_dropped',
 } as const;
 
-export const GAME_STATUSES = {
-  BACKLOG: 'backlog',
-  PLAYING: 'playing',
-  FINISHED: 'finished',
-  BEATEN: 'beaten',
-  DROPPED: 'dropped',
-  WISHLIST: 'wishlist',
-} as const;
-
 export const ALL_STATUSES = {
   ...MOVIE_STATUSES,
   ...SHOW_STATUSES,
-  ...GAME_STATUSES,
 } as const;

@@ -24,10 +24,3 @@ export type {
   ShowStatus,
   MediaType,
 } from './watchlist';
-
-// Games types
-export type {
-  Game,
-  Franchise,
-  GameStatus,
-} from './games';

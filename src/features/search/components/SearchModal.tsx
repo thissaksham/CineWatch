@@ -1,29 +1,25 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Search, X, LoaderCircle } from 'lucide-react';
 import { useSearch } from '../../media/hooks/useTMDB';
-import { useGameSearch } from '../../games/hooks/useGames';
-import { useGameLibrary } from '../../games/hooks/useGameLibrary';
 import { useDebounce } from '../hooks/useDebounce';
 import { sanitizeSearchInput } from '../../../utils/validation';
 import type { TMDBMedia } from '../../../lib/tmdb';
-import type { Game } from '../../../types';
 import { useWatchlist } from '../../watchlist/context/WatchlistContext';
 import { SlidingToggle } from '../../../shared/components/ui/SlidingToggle';
 import { DiscoveryCard } from '../../../shared/components/cards/DiscoveryCard';
-import { GameDiscoveryCard } from '../../games/components/GameDiscoveryCard';
 
 
 interface SearchModalProps {
     isOpen: boolean;
     onClose: () => void;
-    type: 'movie' | 'tv' | 'multi' | 'game';
-    onSuccess?: (media: TMDBMedia | Game) => void;
+    type: 'movie' | 'tv' | 'multi';
+    onSuccess?: (media: TMDBMedia) => void;
     initialQuery?: string;
 }
 
 export const SearchModal = ({ isOpen, onClose, type: initialType, onSuccess, initialQuery = '' }: SearchModalProps) => {
     const [query, setQuery] = useState(initialQuery);
-    const [searchType, setSearchType] = useState<'multi' | 'movie' | 'tv' | 'game'>(initialType === 'multi' ? 'movie' : initialType);
+    const [searchType, setSearchType] = useState<'multi' | 'movie' | 'tv'>(initialType === 'multi' ? 'movie' : initialType);
     const prevIsOpenRef = useRef(isOpen);
 
     // Reset state when modal opens - using effect with ref tracking
@@ -41,32 +37,20 @@ export const SearchModal = ({ isOpen, onClose, type: initialType, onSuccess, ini
     const sanitizedQuery = sanitizeSearchInput(query, 100);
     const debouncedQuery = useDebounce(sanitizedQuery, 300);
 
-    // React Query Hook - Only search if not 'game'
+    // React Query Hook
     const {
         data,
         isLoading,
         fetchNextPage: fetchNextMedia,
         hasNextPage: hasNextMedia,
         isFetchingNextPage: isFetchingNextMedia
-    } = useSearch(debouncedQuery, searchType === 'game' ? 'multi' : searchType as 'multi' | 'movie' | 'tv');
+    } = useSearch(debouncedQuery, searchType as 'multi' | 'movie' | 'tv');
 
-    // Game Search Hook
-    const {
-        data: gameResults,
-        isLoading: isGameLoading,
-        fetchNextPage: fetchNextGame,
-        hasNextPage: hasNextGame,
-        isFetchingNextPage: isFetchingNextGame
-    } = useGameSearch(searchType === 'game' ? debouncedQuery : '');
+    const isSearching = isLoading;
+    const isFetchingMore = isFetchingNextMedia;
 
-    // Combine loading states
-    const isSearching = searchType === 'game' ? isGameLoading : isLoading;
-    const isFetchingMore = searchType === 'game' ? isFetchingNextGame : isFetchingNextMedia;
-
-    // Determine results based on type (Flatten Pages)
-    const results = searchType === 'game'
-        ? (gameResults?.pages.flatMap(p => p.results) || [])
-        : (data?.pages.flatMap(p => p.results as TMDBMedia[]) || []);
+    // Flatten Pages
+    const results = data?.pages.flatMap(p => p.results as TMDBMedia[]) || [];
 
     const { addToWatchlist, isInWatchlist } = useWatchlist();
 
@@ -88,15 +72,13 @@ export const SearchModal = ({ isOpen, onClose, type: initialType, onSuccess, ini
 
         observer.current = new IntersectionObserver(entries => {
             if (entries[0].isIntersecting) {
-                if (searchType === 'game' && hasNextGame) {
-                    fetchNextGame();
-                } else if (searchType !== 'game' && hasNextMedia) {
+                if (hasNextMedia) {
                     fetchNextMedia();
                 }
             }
         });
         if (node) observer.current.observe(node);
-    }, [isSearching, isFetchingMore, hasNextGame, hasNextMedia, searchType, fetchNextGame, fetchNextMedia]);
+    }, [isSearching, isFetchingMore, hasNextMedia, fetchNextMedia]);
 
 
     const handleAdd = async (media: TMDBMedia) => {
@@ -116,41 +98,17 @@ export const SearchModal = ({ isOpen, onClose, type: initialType, onSuccess, ini
         onClose();
     };
 
-    const { removeGame, libraryGames, isInLibrary } = useGameLibrary();
-
-    const handleGameRemove = async (game: Game) => {
-        // Find the library game that corresponds to this RAWG game
-        const libraryGame = libraryGames.find(g => g.rawg_id === game.rawg_id);
-        if (libraryGame) {
-            removeGame(libraryGame.id);
-        }
-    };
-
-    const handleGameAddClick = (game: Game) => {
-        // Delegate to parent/layout
-        if (onSuccess) onSuccess(game);
-        onClose();
-    };
-
-
     if (!isOpen) return null;
 
     const displayResults = query.trim() ? results : [];
     // Check if we're still waiting for debounced query to catch up
     const isDebouncing = sanitizedQuery !== debouncedQuery;
-    const itemsToShow = displayResults.filter((item: TMDBMedia | Game) => {
-        // Relaxed Filter: Allow items without a date or poster
-        // DiscoveryCard handles missing posters with a placeholder.
-
-        // Filter by media_type if searchType is not 'multi' (and not 'game')
-        if (searchType !== 'multi' && searchType !== 'game') {
-            // Check if it's a TMDBMedia object
-            if ('media_type' in item || 'first_air_date' in item || 'release_date' in item) {
-                const tmdbItem = item as TMDBMedia;
-                // If media_type is missing, assume it matches searchType for specific categories
-                const itemMediaType = tmdbItem.media_type || searchType;
-                return itemMediaType === searchType;
-            }
+    const itemsToShow = displayResults.filter((item: TMDBMedia) => {
+        // Filter by media_type if searchType is not 'multi'
+        if (searchType !== 'multi') {
+            // If media_type is missing, assume it matches searchType for specific categories
+            const itemMediaType = item.media_type || searchType;
+            return itemMediaType === searchType;
         }
         return true;
     });
@@ -172,7 +130,7 @@ export const SearchModal = ({ isOpen, onClose, type: initialType, onSuccess, ini
                             <input
                                 autoFocus
                                 type="text"
-                                placeholder={searchType === 'game' ? "Search for games..." : "Search for movies, TV shows..."}
+                                placeholder="Search for movies, TV shows..."
                                 className="search-hero-input"
                                 value={query}
                                 onChange={e => setQuery(e.target.value)}
@@ -182,16 +140,14 @@ export const SearchModal = ({ isOpen, onClose, type: initialType, onSuccess, ini
 
                         <div className="search-filters">
                             <SlidingToggle
-                                options={['Movies', 'TV Shows', 'Games']}
+                                options={['Movies', 'TV Shows']}
                                 activeOption={
                                     searchType === 'movie' ? 'Movies' :
-                                        searchType === 'tv' ? 'TV Shows' :
-                                            searchType === 'game' ? 'Games' : 'Movies'
+                                        searchType === 'tv' ? 'TV Shows' : 'Movies'
                                 }
                                 onToggle={(val) => {
                                     if (val === 'Movies') setSearchType('movie');
                                     else if (val === 'TV Shows') setSearchType('tv');
-                                    else if (val === 'Games') setSearchType('game');
                                 }}
                             />
                         </div>
@@ -202,72 +158,38 @@ export const SearchModal = ({ isOpen, onClose, type: initialType, onSuccess, ini
                             {/* 'Trending Now' removed */}
                         </div>
 
-                        {searchType === 'game' ? (
+                        {itemsToShow.length === 0 && !isSearching && !isDebouncing && query.trim() ? (
+                            <div className="text-center py-20 text-gray-400">
+                                No discovery found. Try a different search!
+                            </div>
+                        ) : (
                             <div className={`media-grid ${isSearching ? 'loading-state' : ''}`}>
-                                {(results as Game[]).map((game, index) => {
-                                    const isAdded = isInLibrary(game.rawg_id);
-                                    if (results.length === index + 1) {
+                                {itemsToShow.map((media, index) => {
+                                    const mType = media.media_type || (searchType === 'tv' ? 'tv' : 'movie');
+                                    const targetType = mType === 'tv' ? 'show' : 'movie';
+
+                                    if (itemsToShow.length === index + 1) {
                                         return (
-                                            <div ref={lastElementRef} key={game.id}>
-                                                <GameDiscoveryCard
-                                                    game={game}
-                                                    onAdd={() => handleGameAddClick(game)} // Calls onSuccess + Close
-                                                    onRemove={() => handleGameRemove(game)}
-                                                    isAdded={isAdded}
+                                            <div ref={lastElementRef} key={media.id}>
+                                                <DiscoveryCard
+                                                    media={media}
+                                                    isAdded={isInWatchlist(media.id, targetType)}
+                                                    onAdd={() => handleAdd(media)}
                                                 />
                                             </div>
                                         );
                                     }
+
                                     return (
-                                        <GameDiscoveryCard
-                                            key={game.id}
-                                            game={game}
-                                            onAdd={() => handleGameAddClick(game)} // Calls onSuccess + Close
-                                            onRemove={() => handleGameRemove(game)}
-                                            isAdded={isAdded}
+                                        <DiscoveryCard
+                                            key={media.id}
+                                            media={media}
+                                            isAdded={isInWatchlist(media.id, targetType)}
+                                            onAdd={() => handleAdd(media)}
                                         />
                                     );
                                 })}
-                                {results.length === 0 && !isSearching && !isDebouncing && query.trim() && (
-                                    <div className="col-span-full text-center py-20 text-gray-400">
-                                        No games found. Try a different search!
-                                    </div>
-                                )}
                             </div>
-                        ) : (
-                            itemsToShow.length === 0 && !isSearching && !isDebouncing && query.trim() ? (
-                                <div className="text-center py-20 text-gray-400">
-                                    No discovery found. Try a different search!
-                                </div>
-                            ) : (
-                                <div className={`media-grid ${isSearching ? 'loading-state' : ''}`}>
-                                    {(itemsToShow as TMDBMedia[]).map((media, index) => {
-                                        const mType = media.media_type || (searchType === 'tv' ? 'tv' : 'movie');
-                                        const targetType = mType === 'tv' ? 'show' : 'movie';
-
-                                        if (itemsToShow.length === index + 1) {
-                                            return (
-                                                <div ref={lastElementRef} key={media.id}>
-                                                    <DiscoveryCard
-                                                        media={media}
-                                                        isAdded={isInWatchlist(media.id, targetType)}
-                                                        onAdd={() => handleAdd(media)}
-                                                    />
-                                                </div>
-                                            );
-                                        }
-
-                                        return (
-                                            <DiscoveryCard
-                                                key={media.id}
-                                                media={media}
-                                                isAdded={isInWatchlist(media.id, targetType)}
-                                                onAdd={() => handleAdd(media)}
-                                            />
-                                        );
-                                    })}
-                                </div>
-                            )
                         )}
                     </div>
                 </div>
