@@ -339,6 +339,39 @@ async function runRefresh() {
                     
                     const details = await detailsRes.json();
 
+                    let hasAiredFinale = false;
+                    if (item.type === 'show' && details.last_episode_to_air) {
+                        const tmdbStatus = details.status;
+                        const isFinishedShow = (tmdbStatus === 'Ended' || tmdbStatus === 'Canceled' || tmdbStatus === 'Miniseries' || details.type === 'Miniseries') && tmdbStatus !== 'Returning Series';
+                        
+                        if (!isFinishedShow) {
+                            try {
+                                const seasonRes = await fetchTMDB(
+                                    `https://api.themoviedb.org/3/tv/${item.tmdb_id}/season/${details.last_episode_to_air.season_number}?api_key=${TMDB_API_KEY}`
+                                );
+                                if (seasonRes.ok) {
+                                    const seasonData = await seasonRes.json();
+                                    if (seasonData?.episodes) {
+                                        const today = new Date();
+                                        today.setHours(0, 0, 0, 0);
+                                        hasAiredFinale = seasonData.episodes.some((ep: any) => {
+                                            if (ep.episode_type === 'finale' && ep.air_date) {
+                                                const airDate = new Date(ep.air_date);
+                                                airDate.setHours(0,0,0,0);
+                                                return airDate && airDate <= today;
+                                            }
+                                            return false;
+                                        });
+                                    }
+                                }
+                            } catch (e) {
+                                console.warn("Failed to fetch season details for finale check in refresh", e);
+                            }
+                        }
+                    }
+                    
+                    details.has_aired_finale = hasAiredFinale || item.metadata?.has_aired_finale;
+
                     let newStatus = item.status as WatchStatus;
                     // Declare date variables at this scope so they're accessible in the metadata merge
                     let digitalDate: string | null = null;
